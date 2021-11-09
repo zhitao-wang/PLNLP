@@ -6,6 +6,7 @@ from logger import Logger
 import time
 from model import Model
 import torch
+from torch_sparse import coalesce
 
 def main():
     parser = argparse.ArgumentParser()
@@ -27,10 +28,12 @@ def main():
     parser.add_argument('--log_steps', type=int, default=1)
     parser.add_argument('--eval_steps', type=int, default=10)
     parser.add_argument('--runs', type=int, default=10)
+    parser.add_argument('--year', type=int, default=-1)
     parser.add_argument('--num_nodes', type=int)
     parser.add_argument('--num_node_features', type=int)
     parser.add_argument('--use_node_features', action='store_true')
     parser.add_argument('--use_valedges_as_input', action='store_true')
+    parser.add_argument('--use_coalesce', action='store_true')
     args = parser.parse_args()
 
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
@@ -39,28 +42,40 @@ def main():
 
     dataset = PygLinkPropPredDataset(name=args.data_name)
     data = dataset[0]
-    edge_index = data.edge_index
-    data.edge_weight = data.edge_weight.view(-1).to(torch.float)
+    edge_weight = data.edge_weight.view(-1).to(torch.float)
     data = T.ToSparseTensor()(data)
     split_edge = dataset.get_edge_split()
+
     args.num_nodes = data.num_nodes
     args.num_node_features = data.num_features
-
     print(args)
+
+    if args.year > 0:
+        select_year_index = (split_edge['train']['year'] >= args.year).nonzero(as_tuple = False)
+        split_edge['train']['year'] = split_edge['train']['year'][select_year_index]
+        split_edge['train']['weight'] = split_edge['train']['weight'][select_year_index]
+        split_edge['train']['edge'] = split_edge['train']['edge'][select_year_index]
+        train_edge_index = split_edge['train']['edge'].t()
+        data.adj_t = SparseTensor.from_edge_index(train_edge_index).t().to_symmetric()
 
     # Use training + validation edges for inference on test set.
     if args.use_valedges_as_input:
         val_edge_index = split_edge['valid']['edge'].t()
         train_edge_index = split_edge['train']['edge'].t()
-        full_edge_index = torch.cat([edge_index, val_edge_index], dim=-1)
+        full_edge_index = torch.cat([train_edge_index, val_edge_index], dim=-1)
         data.full_adj_t = SparseTensor.from_edge_index(full_edge_index).t()
         data.full_adj_t = data.full_adj_t.to_symmetric()
-        split_edge['train']['edge'] = torch.cat([train_edge_index, val_edge_index], dim=-1).t()
         data.adj_t = data.full_adj_t
         row, col, _ = data.adj_t.coo()
         data.edge_index = torch.stack([col, row], dim=0)
+
+        if args.use_coalesce:
+            full_edge_index, _ = coalesce(full_edge_index, torch.ones([full_edge_index.size(1), 1], dtype=int), data.num_nodes, data.num_nodes)
+
+        split_edge['train']['edge'] = full_edge_index.t()
     else:
         data.full_adj_t = data.adj_t
+
 
     data = data.to(device)
     model = Model(args)
