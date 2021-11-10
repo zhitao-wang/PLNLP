@@ -1,12 +1,11 @@
 import argparse
-from torch_sparse import SparseTensor
-import torch_geometric.transforms as T
-from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
-from logger import Logger
 import time
-from model import Model
 import torch
-from torch_sparse import coalesce
+import torch_geometric.transforms as T
+from logger import Logger
+from model import Model
+from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
+from torch_sparse import coalesce, SparseTensor
 
 def main():
     parser = argparse.ArgumentParser()

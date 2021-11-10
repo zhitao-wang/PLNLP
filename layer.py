@@ -1,6 +1,6 @@
-from torch_geometric.nn import SAGEConv
 import torch.nn.functional as F
 import torch
+from torch_geometric.nn import SAGEConv
 
 class SAGE(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels, num_layers,

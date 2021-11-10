@@ -1,4 +1,3 @@
-import torch
 from layer import *
 from negative_sample import *
 from loss import *
