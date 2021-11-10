@@ -41,23 +41,25 @@ def main():
 
     dataset = PygLinkPropPredDataset(name=args.data_name)
     data = dataset[0]
-    if data.edge_weight != None:
+    if hasattr(data, 'edge_weight'):
         edge_weight = data.edge_weight.view(-1).to(torch.float)
 
     data = T.ToSparseTensor()(data)
     row, col, _ = data.adj_t.coo()
     data.edge_index = torch.stack([col, row], dim=0)
 
-    if data.x != None:
+    if hasattr(data, 'x'):
         data.x = data.x.to(torch.float)
-    if data.num_features != None:
+    if hasattr(data, 'num_features'):
         args.num_node_features = data.num_features
-
-    args.num_nodes = data.adj_t.size(0)
+    if hasattr(data, 'num_nodes'):
+        args.num_nodes = data.num_nodes
+    else:
+        args.num_nodes = data.adj_t.size(0)
     split_edge = dataset.get_edge_split()
     print(args)
 
-    if args.year > 0 and data.edge_year != None:
+    if args.year > 0 and hasattr(data, 'edge_year'):
         selected_year_index = torch.reshape((split_edge['train']['year'] >= args.year).nonzero(as_tuple=False), (-1,))
         split_edge['train']['edge'] = split_edge['train']['edge'][selected_year_index]
         split_edge['train']['weight'] = split_edge['train']['weight'][selected_year_index]
