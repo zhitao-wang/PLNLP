@@ -68,8 +68,8 @@ class Model(object):
             neg_train_edge = global_perm_neg_sample(data.edge_index, num_nodes=self.num_nodes, num_samples=pos_train_edge.size(0), num_neg=self.num_neg)
 
         neg_train_edge = torch.reshape(neg_train_edge, (-1, self.num_neg, 2))
-        pos_train_edge = pos_train_edge.to(data.x.device)
-        neg_train_edge = neg_train_edge.to(data.x.device)
+        pos_train_edge = pos_train_edge.to(self.device)
+        neg_train_edge = neg_train_edge.to(self.device)
 
         if self.use_node_features:
             input_feat = data.x

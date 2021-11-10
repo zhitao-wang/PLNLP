@@ -15,8 +15,8 @@ def main():
     parser.add_argument('--optimizer', type=str, default='Adam')
     parser.add_argument('--loss_func', type=str, default='AUC')
     parser.add_argument('--neg_sampler', type=str, default='global_perm')
-    parser.add_argument('--data_name', type=str, default='ogbl-collab')
-    parser.add_argument('--gnn_num_layers', type=int, default=3)
+    parser.add_argument('--data_name', type=str, default='ogbl-ppa')
+    parser.add_argument('--gnn_num_layers', type=int, default=2)
     parser.add_argument('--mlp_num_layers', type=int, default=1)
     parser.add_argument('--hidden_channels', type=int, default=256)
     parser.add_argument('--dropout', type=float, default=0.0)
@@ -42,19 +42,27 @@ def main():
 
     dataset = PygLinkPropPredDataset(name=args.data_name)
     data = dataset[0]
-    edge_weight = data.edge_weight.view(-1).to(torch.float)
-    data = T.ToSparseTensor()(data)
-    split_edge = dataset.get_edge_split()
+    if data.edge_weight != None:
+        edge_weight = data.edge_weight.view(-1).to(torch.float)
 
-    args.num_nodes = data.num_nodes
-    args.num_node_features = data.num_features
+    data = T.ToSparseTensor()(data)
+    row, col, _ = data.adj_t.coo()
+    data.edge_index = torch.stack([col, row], dim=0)
+
+    if data.x != None:
+        data.x = data.x.to(torch.float)
+    if data.num_features != None:
+        args.num_node_features = data.num_features
+
+    args.num_nodes = data.adj_t.size(0)
+    split_edge = dataset.get_edge_split()
     print(args)
 
-    if args.year > 0:
-        select_year_index = (split_edge['train']['year'] >= args.year).nonzero(as_tuple = False)
-        split_edge['train']['year'] = split_edge['train']['year'][select_year_index]
-        split_edge['train']['weight'] = split_edge['train']['weight'][select_year_index]
-        split_edge['train']['edge'] = split_edge['train']['edge'][select_year_index]
+    if args.year > 0 and data.edge_year != None:
+        selected_year_index = torch.reshape((split_edge['train']['year'] >= args.year).nonzero(as_tuple=False), (-1,))
+        split_edge['train']['edge'] = split_edge['train']['edge'][selected_year_index]
+        split_edge['train']['weight'] = split_edge['train']['weight'][selected_year_index]
+        split_edge['train']['year'] = split_edge['train']['year'][selected_year_index]
         train_edge_index = split_edge['train']['edge'].t()
         data.adj_t = SparseTensor.from_edge_index(train_edge_index).t().to_symmetric()
 
