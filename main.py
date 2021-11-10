@@ -42,20 +42,23 @@ def main():
     dataset = PygLinkPropPredDataset(name=args.data_name)
     data = dataset[0]
     if hasattr(data, 'edge_weight'):
-        edge_weight = data.edge_weight.view(-1).to(torch.float)
+        if data.edge_weight is not None:
+            edge_weight = data.edge_weight.view(-1).to(torch.float)
 
     data = T.ToSparseTensor()(data)
     row, col, _ = data.adj_t.coo()
     data.edge_index = torch.stack([col, row], dim=0)
 
     if hasattr(data, 'x'):
-        data.x = data.x.to(torch.float)
+        if data.x is not None:
+            data.x = data.x.to(torch.float)
     if hasattr(data, 'num_features'):
         args.num_node_features = data.num_features
     if hasattr(data, 'num_nodes'):
         args.num_nodes = data.num_nodes
     else:
         args.num_nodes = data.adj_t.size(0)
+
     split_edge = dataset.get_edge_split()
     print(args)
 
@@ -79,7 +82,7 @@ def main():
         data.edge_index = torch.stack([col, row], dim=0)
 
         if args.use_coalesce:
-            full_edge_index, _ = coalesce(full_edge_index, torch.ones([full_edge_index.size(1), 1], dtype=int), data.num_nodes, data.num_nodes)
+            full_edge_index, _ = coalesce(full_edge_index, torch.ones([full_edge_index.size(1), 1], dtype=int), args.num_nodes, args.num_nodes)
 
         split_edge['train']['edge'] = full_edge_index.t()
     else:
