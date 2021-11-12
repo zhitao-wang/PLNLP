@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from layer import *
 from negative_sample import *
 from loss import *

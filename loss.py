@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import torch
 
 def auc_loss(pos_out, neg_out, num_neg):

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import torch.nn.functional as F
 import torch
 from torch_geometric.nn import SAGEConv
