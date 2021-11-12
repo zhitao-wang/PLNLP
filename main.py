@@ -89,6 +89,15 @@ def main():
     else:
         data.full_adj_t = data.adj_t
 
+    if args.model == 'GCN':
+        # Pre-compute GCN normalization.
+        adj_t = data.adj_t.set_diag()
+        deg = adj_t.sum(dim=1).to(torch.float)
+        deg_inv_sqrt = deg.pow(-0.5)
+        deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
+        adj_t = deg_inv_sqrt.view(-1, 1) * adj_t * deg_inv_sqrt.view(1, -1)
+        data.adj_t = adj_t
+        data.full_adj_t = adj_t
 
     data = data.to(device)
     model = Model(args)

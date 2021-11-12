@@ -30,9 +30,14 @@ class Model(object):
             self.emb = torch.nn.Embedding(self.num_nodes, self.hidden_channels).to(self.device)
             self.input_dim = self.hidden_channels
 
-        self.encoder = SAGE(self.input_dim, self.hidden_channels,
-                       self.hidden_channels, self.gnn_num_layers,
-                       self.dropout).to(self.device)
+        if self.encoder_name == 'GCN':
+            self.encoder = GCN(self.input_dim, self.hidden_channels,
+                           self.hidden_channels, self.gnn_num_layers,
+                           self.dropout).to(self.device)
+        else:
+            self.encoder = SAGE(self.input_dim, self.hidden_channels,
+                           self.hidden_channels, self.gnn_num_layers,
+                           self.dropout).to(self.device)
 
         if self.predictor_name == 'DOT':
             self.predictor = DotPredictor().to(self.device)
