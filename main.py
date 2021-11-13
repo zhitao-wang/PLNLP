@@ -3,10 +3,20 @@ import argparse
 import time
 import torch
 import torch_geometric.transforms as T
-from logger import Logger
-from model import Model
+from ogbk.logger import Logger
+from ogbk.model import Model
 from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
 from torch_sparse import coalesce, SparseTensor
+
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
 
 def main():
     parser = argparse.ArgumentParser()
@@ -16,6 +26,7 @@ def main():
     parser.add_argument('--loss_func', type=str, default='AUC')
     parser.add_argument('--neg_sampler', type=str, default='global_perm')
     parser.add_argument('--data_name', type=str, default='ogbl-ppa')
+    parser.add_argument('--data_path', type=str, default='dataset')
     parser.add_argument('--gnn_num_layers', type=int, default=2)
     parser.add_argument('--mlp_num_layers', type=int, default=1)
     parser.add_argument('--hidden_channels', type=int, default=256)
@@ -31,16 +42,17 @@ def main():
     parser.add_argument('--year', type=int, default=-1)
     parser.add_argument('--num_nodes', type=int)
     parser.add_argument('--num_node_features', type=int)
-    parser.add_argument('--use_node_features', action='store_true')
-    parser.add_argument('--use_valedges_as_input', action='store_true')
-    parser.add_argument('--use_coalesce', action='store_true')
+    parser.add_argument('--use_node_features', type=str2bool, default=False)
+    parser.add_argument('--use_valedges_as_input', type=str2bool, default=False)
+    parser.add_argument('--use_coalesce', type=str2bool, default=False)
+    parser.add_argument('--train_node_emb', type=str2bool, default=False)
     args = parser.parse_args()
 
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
     args.device = device
 
-    dataset = PygLinkPropPredDataset(name=args.data_name)
+    dataset = PygLinkPropPredDataset(name=args.data_name, root=args.data_path)
     data = dataset[0]
     if hasattr(data, 'edge_weight'):
         if data.edge_weight is not None:
@@ -89,7 +101,7 @@ def main():
     else:
         data.full_adj_t = data.adj_t
 
-    if args.model == 'GCN':
+    if args.encoder == 'GCN':
         # Pre-compute GCN normalization.
         adj_t = data.adj_t.set_diag()
         deg = adj_t.sum(dim=1).to(torch.float)

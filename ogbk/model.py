@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-from layer import *
-from negative_sample import *
-from loss import *
+from ogbk.layer import *
+from ogbk.negative_sample import *
+from ogbk.loss import *
 from torch.utils.data import DataLoader
 
 class Model(object):
@@ -21,11 +21,17 @@ class Model(object):
         self.num_nodes = config.num_nodes
         self.use_node_features = config.use_node_features
         self.num_node_features = config.num_node_features
+        self.train_node_emb = config.train_node_emb
 
         self.device = config.device
 
         if self.use_node_features:
             self.input_dim = self.num_node_features
+            if self.train_node_emb:
+                self.emb = torch.nn.Embedding(self.num_nodes, self.hidden_channels).to(self.device)
+                self.input_dim += self.hidden_channels
+            else:
+                self.emb = None
         else:
             self.emb = torch.nn.Embedding(self.num_nodes, self.hidden_channels).to(self.device)
             self.input_dim = self.hidden_channels
@@ -66,18 +72,19 @@ class Model(object):
 
         pos_train_edge = split_edge['train']['edge']
         if self.neg_sampler_name == 'local':
-            neg_train_edge = local_random_neg_sample(pos_train_edge, num_nodes=self.num_nodes, num_neg=self.num_neg)
+            neg_train_edge = local_random_neg_sample(pos_train_edge, num_nodes=self.num_nodes, num_neg=self.num_neg).to(self.device)
         elif self.neg_sampler_name == 'global':
-            neg_train_edge = global_neg_sample(data.edge_index, num_nodes=self.num_nodes, num_samples=pos_train_edge.size(0), num_neg=self.num_neg)
+            neg_train_edge = global_neg_sample(data.edge_index, num_nodes=self.num_nodes, num_samples=pos_train_edge.size(0), num_neg=self.num_neg).to(self.device)
         else:
-            neg_train_edge = global_perm_neg_sample(data.edge_index, num_nodes=self.num_nodes, num_samples=pos_train_edge.size(0), num_neg=self.num_neg)
+            neg_train_edge = global_perm_neg_sample(data.edge_index, num_nodes=self.num_nodes, num_samples=pos_train_edge.size(0), num_neg=self.num_neg).to(self.device)
 
         neg_train_edge = torch.reshape(neg_train_edge, (-1, self.num_neg, 2))
-        pos_train_edge = pos_train_edge.to(self.device)
-        neg_train_edge = neg_train_edge.to(self.device)
 
         if self.use_node_features:
-            input_feat = data.x
+            if self.train_node_emb:
+                input_feat = torch.cat([self.emb.weight, data.x.to(self.device)], dim = -1)
+            else:
+                input_feat = data.x.to(self.device)
         else:
             input_feat = self.emb.weight
 
@@ -116,17 +123,20 @@ class Model(object):
         self.predictor.eval()
 
         if self.use_node_features:
-            input_feat = data.x
+            if self.train_node_emb:
+                input_feat = torch.cat([self.emb.weight, data.x.to(self.device)], dim=-1)
+            else:
+                input_feat = data.x.to(self.device)
         else:
             input_feat = self.emb.weight
 
         h = self.encoder(input_feat, data.adj_t)
 
-        pos_train_edge = split_edge['train']['edge'].to(h.device)
-        pos_valid_edge = split_edge['valid']['edge'].to(h.device)
-        neg_valid_edge = split_edge['valid']['edge_neg'].to(h.device)
-        pos_test_edge = split_edge['test']['edge'].to(h.device)
-        neg_test_edge = split_edge['test']['edge_neg'].to(h.device)
+        pos_train_edge = split_edge['train']['edge'].to(self.device)
+        pos_valid_edge = split_edge['valid']['edge'].to(self.device)
+        neg_valid_edge = split_edge['valid']['edge_neg'].to(self.device)
+        pos_test_edge = split_edge['test']['edge'].to(self.device)
+        neg_test_edge = split_edge['test']['edge_neg'].to(self.device)
 
         pos_train_preds = []
         for perm in DataLoader(range(pos_train_edge.size(0)), self.batch_size):
