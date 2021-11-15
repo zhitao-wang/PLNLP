@@ -3,10 +3,11 @@ import argparse
 import time
 import torch
 import torch_geometric.transforms as T
+from torch_sparse import coalesce, SparseTensor
 from ogbk.logger import Logger
 from ogbk.model import Model
 from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
-from torch_sparse import coalesce, SparseTensor
+
 
 def str2bool(v):
     if isinstance(v, bool):
@@ -18,7 +19,8 @@ def str2bool(v):
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
-def main():
+
+def argument():
     parser = argparse.ArgumentParser()
     parser.add_argument('--encoder', type=str, default='GraphSage')
     parser.add_argument('--predictor', type=str, default='DOT')
@@ -43,11 +45,18 @@ def main():
     parser.add_argument('--num_nodes', type=int)
     parser.add_argument('--num_node_features', type=int)
     parser.add_argument('--use_node_features', type=str2bool, default=False)
-    parser.add_argument('--use_valedges_as_input', type=str2bool, default=False)
     parser.add_argument('--use_coalesce', type=str2bool, default=False)
     parser.add_argument('--train_node_emb', type=str2bool, default=False)
+    parser.add_argument(
+        '--use_valedges_as_input',
+        type=str2bool,
+        default=False)
     args = parser.parse_args()
+    return args
 
+
+def main():
+    args = argument()
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
     args.device = device
@@ -56,7 +65,7 @@ def main():
     data = dataset[0]
     if hasattr(data, 'edge_weight'):
         if data.edge_weight is not None:
-            edge_weight = data.edge_weight.view(-1).to(torch.float)
+            data.edge_weight = data.edge_weight.view(-1).to(torch.float)
 
     data = T.ToSparseTensor()(data)
     row, col, _ = data.adj_t.coo()
@@ -76,12 +85,15 @@ def main():
     print(args)
 
     if args.year > 0 and hasattr(data, 'edge_year'):
-        selected_year_index = torch.reshape((split_edge['train']['year'] >= args.year).nonzero(as_tuple=False), (-1,))
+        selected_year_index = torch.reshape(
+            (split_edge['train']['year'] >= args.year).nonzero(
+                as_tuple=False), (-1,))
         split_edge['train']['edge'] = split_edge['train']['edge'][selected_year_index]
         split_edge['train']['weight'] = split_edge['train']['weight'][selected_year_index]
         split_edge['train']['year'] = split_edge['train']['year'][selected_year_index]
         train_edge_index = split_edge['train']['edge'].t()
-        data.adj_t = SparseTensor.from_edge_index(train_edge_index).t().to_symmetric()
+        data.adj_t = SparseTensor.from_edge_index(
+            train_edge_index).t().to_symmetric()
 
     # Use training + validation edges for inference on test set.
     if args.use_valedges_as_input:
@@ -95,7 +107,8 @@ def main():
         data.edge_index = torch.stack([col, row], dim=0)
 
         if args.use_coalesce:
-            full_edge_index, _ = coalesce(full_edge_index, torch.ones([full_edge_index.size(1), 1], dtype=int), args.num_nodes, args.num_nodes)
+            full_edge_index, _ = coalesce(full_edge_index, torch.ones(
+                [full_edge_index.size(1), 1], dtype=int), args.num_nodes, args.num_nodes)
 
         split_edge['train']['edge'] = full_edge_index.t()
     else:
@@ -112,7 +125,24 @@ def main():
         data.full_adj_t = adj_t
 
     data = data.to(device)
-    model = Model(args)
+    model = Model(
+        lr=args.lr,
+        dropout=args.dropout,
+        gnn_num_layers=args.gnn_num_layers,
+        mlp_num_layers=args.mlp_num_layers,
+        hidden_channels=args.hidden_channels,
+        batch_size=args.batch_size,
+        num_nodes=args.num_nodes,
+        num_node_features=args.num_node_features,
+        num_neg=args.num_neg,
+        gnn_encoder=args.gnn_encoder,
+        predictor=args.predictor,
+        loss_func=args.loss_func,
+        neg_sampler=args.neg_sampler,
+        optimizer=args.optimizer,
+        device=args.device,
+        use_node_features=args.use_node_features,
+        train_node_emb=args.train_node_emb)
 
     evaluator = Evaluator(name=args.data_name)
 
@@ -143,7 +173,8 @@ def main():
                               f'Valid: {100 * valid_hits:.2f}%, '
                               f'Test: {100 * test_hits:.2f}%')
                     print('---')
-                    print(f'Training Time Per Epoch: {spent_time / args.eval_steps: .4f} s')
+                    print(
+                        f'Training Time Per Epoch: {spent_time / args.eval_steps: .4f} s')
                     print('---')
                     start_time = time.time()
 

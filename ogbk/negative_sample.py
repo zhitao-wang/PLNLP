@@ -2,9 +2,11 @@
 import torch
 from torch_geometric.utils import negative_sampling
 
-def global_neg_sample(edge_index, num_nodes, num_samples, num_neg, method = 'sparse'):
+
+def global_neg_sample(edge_index, num_nodes, num_samples,
+                      num_neg, method='sparse'):
     neg_edge = negative_sampling(edge_index, num_nodes=num_nodes,
-                                 num_neg_samples= num_samples * num_neg, method = method)
+                                 num_neg_samples=num_samples * num_neg, method=method)
     neg_src = neg_edge[0]
     neg_dst = neg_edge[1]
     if neg_edge.size(1) < num_samples * num_neg:
@@ -14,9 +16,11 @@ def global_neg_sample(edge_index, num_nodes, num_samples, num_neg, method = 'spa
         neg_dst = torch.cat((neg_dst, neg_dst[rand_index]))
     return torch.stack((neg_src, neg_dst), dim=-1)
 
-def global_perm_neg_sample(edge_index, num_nodes, num_samples, num_neg, method = 'sparse'):
+
+def global_perm_neg_sample(edge_index, num_nodes,
+                           num_samples, num_neg, method='sparse'):
     neg_edge = negative_sampling(edge_index, num_nodes=num_nodes,
-                                 num_neg_samples= num_samples, method = method)
+                                 num_neg_samples=num_samples, method=method)
     neg_src = neg_edge[0]
     neg_dst = neg_edge[1]
     if neg_edge.size(1) < num_samples:
@@ -32,9 +36,12 @@ def global_perm_neg_sample(edge_index, num_nodes, num_samples, num_neg, method =
         neg_dst = torch.cat((neg_dst, tmp_dst[rand_index]))
     return torch.stack((neg_src, neg_dst), dim=-1)
 
+
 def local_random_neg_sample(pos_edges, num_nodes, num_neg):
-    neg_src = pos_edges[torch.arange(pos_edges.size(0)), torch.randint(0, 2, (pos_edges.size(0), ), dtype=torch.long)]
+    neg_src = pos_edges[torch.arange(pos_edges.size(0)), torch.randint(
+        0, 2, (pos_edges.size(0), ), dtype=torch.long)]
     neg_src = torch.reshape(neg_src, (-1, 1)).repeat(1, num_neg)
     neg_src = torch.reshape(neg_src, (-1,))
-    neg_dst = torch.randint(0, num_nodes, (num_neg * pos_edges.size(0),), dtype=torch.long)
+    neg_dst = torch.randint(
+        0, num_nodes, (num_neg * pos_edges.size(0),), dtype=torch.long)
     return torch.stack((neg_src, neg_dst), dim=-1)

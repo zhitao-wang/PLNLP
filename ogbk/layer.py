@@ -1,22 +1,37 @@
 # -*- coding: utf-8 -*-
-import torch.nn.functional as F
 import torch
+import torch.nn.functional as F
 from torch_geometric.nn import SAGEConv, GCNConv
+
 
 class GCN(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels, num_layers,
                  dropout):
         super(GCN, self).__init__()
-
         self.convs = torch.nn.ModuleList()
-
         if num_layers < 2:
-            self.convs.append(GCNConv(in_channels, out_channels, normalize=False))
+            self.convs.append(
+                GCNConv(
+                    in_channels,
+                    out_channels,
+                    normalize=False))
         else:
-            self.convs.append(GCNConv(in_channels, hidden_channels, normalize=False))
+            self.convs.append(
+                GCNConv(
+                    in_channels,
+                    hidden_channels,
+                    normalize=False))
             for _ in range(num_layers - 2):
-                self.convs.append(GCNConv(hidden_channels, hidden_channels, normalize=False))
-            self.convs.append(GCNConv(hidden_channels, out_channels, normalize=False))
+                self.convs.append(
+                    GCNConv(
+                        hidden_channels,
+                        hidden_channels,
+                        normalize=False))
+            self.convs.append(
+                GCNConv(
+                    hidden_channels,
+                    out_channels,
+                    normalize=False))
         self.dropout = dropout
 
     def reset_parameters(self):
@@ -30,6 +45,7 @@ class GCN(torch.nn.Module):
             x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.convs[-1](x, adj_t)
         return x
+
 
 class SAGE(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels, num_layers,
@@ -57,6 +73,7 @@ class SAGE(torch.nn.Module):
         x = self.convs[-1](x, adj_t)
         return x
 
+
 class MLPPredictor(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels, num_layers,
                  dropout):
@@ -67,7 +84,10 @@ class MLPPredictor(torch.nn.Module):
         else:
             self.lins.append(torch.nn.Linear(in_channels, hidden_channels))
             for _ in range(num_layers - 2):
-                self.lins.append(torch.nn.Linear(hidden_channels, hidden_channels))
+                self.lins.append(
+                    torch.nn.Linear(
+                        hidden_channels,
+                        hidden_channels))
             self.lins.append(torch.nn.Linear(hidden_channels, out_channels))
         self.dropout = dropout
 
@@ -84,6 +104,7 @@ class MLPPredictor(torch.nn.Module):
         x = self.lins[-1](x)
         return x
 
+
 class DotPredictor(torch.nn.Module):
     def __init__(self):
         super(DotPredictor, self).__init__()
@@ -92,8 +113,9 @@ class DotPredictor(torch.nn.Module):
         return
 
     def forward(self, x_i, x_j):
-        x = torch.sum(x_i * x_j, dim = -1)
+        x = torch.sum(x_i * x_j, dim=-1)
         return x
+
 
 class BilinearPredictor(torch.nn.Module):
     def __init__(self, hidden_channels):
@@ -104,5 +126,5 @@ class BilinearPredictor(torch.nn.Module):
         self.lin.reset_parameters()
 
     def forward(self, x_i, x_j):
-        x = torch.sum(self.lin(x_i) * x_j, dim = -1)
+        x = torch.sum(self.lin(x_i) * x_j, dim=-1)
         return x

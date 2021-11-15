@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import torch
 
+
 class Logger(object):
     def __init__(self, runs, info=None):
         self.info = info
