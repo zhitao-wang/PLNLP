@@ -22,7 +22,7 @@ def str2bool(v):
 
 def argument():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--gnn_encoder', type=str, default='GraphSage')
+    parser.add_argument('--encoder', type=str, default='GraphSage')
     parser.add_argument('--predictor', type=str, default='DOT')
     parser.add_argument('--optimizer', type=str, default='Adam')
     parser.add_argument('--loss_func', type=str, default='AUC')
@@ -135,7 +135,7 @@ def main():
         num_nodes=args.num_nodes,
         num_node_features=args.num_node_features,
         num_neg=args.num_neg,
-        gnn_encoder=args.gnn_encoder,
+        gnn_encoder=args.encoder,
         predictor=args.predictor,
         loss_func=args.loss_func,
         neg_sampler=args.neg_sampler,
