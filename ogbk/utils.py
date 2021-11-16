@@ -33,10 +33,23 @@ def get_pos_neg_edges(split, split_edge, edge_index=None,
         target = split_edge[split]['target_node']
         pos_edge = torch.stack([source, target]).t()
         if split == 'train':
-            neg_edge = local_random_neg_sample(
-                pos_edge,
-                num_nodes=num_nodes,
-                num_neg=num_neg)
+            if neg_sampler_name == 'local':
+                neg_edge = local_random_neg_sample(
+                    pos_edge,
+                    num_nodes=num_nodes,
+                    num_neg=num_neg)
+            elif neg_sampler_name == 'global':
+                neg_edge = global_neg_sample(
+                    edge_index,
+                    num_nodes=num_nodes,
+                    num_samples=pos_edge.size(0),
+                    num_neg=num_neg)
+            else:
+                neg_edge = global_perm_neg_sample(
+                    edge_index,
+                    num_nodes=num_nodes,
+                    num_samples=pos_edge.size(0),
+                    num_neg=num_neg)
         else:
             target_neg = split_edge[split]['target_node_neg']
             neg_per_target = target_neg.size(1)
