@@ -5,7 +5,7 @@ from ogbk.negative_sample import *
 
 def get_pos_neg_edges(split, split_edge, edge_index=None, num_nodes=None, neg_sampler_name=None, num_neg=None):
     if 'edge' in split_edge['train']:
-        pos_edge = split_edge[split]['edge'].t()
+        pos_edge = split_edge[split]['edge']
         if split == 'train':
             if neg_sampler_name == 'local':
                 neg_edge = local_random_neg_sample(
@@ -25,7 +25,7 @@ def get_pos_neg_edges(split, split_edge, edge_index=None, num_nodes=None, neg_sa
                     num_samples=pos_edge.size(0),
                     num_neg=num_neg)
         else:
-            neg_edge = split_edge[split]['edge_neg'].t()
+            neg_edge = split_edge[split]['edge_neg']
 
     elif 'source_node' in split_edge['train']:
         source = split_edge[split]['source_node']
@@ -36,10 +36,10 @@ def get_pos_neg_edges(split, split_edge, edge_index=None, num_nodes=None, neg_sa
         else:
             target_neg = split_edge[split]['target_node_neg']
 
-        pos_edge = torch.stack([source, target])
+        pos_edge = torch.stack([source, target]).t()
         neg_per_target = target_neg.size(1)
         neg_edge = torch.stack([source.repeat_interleave(neg_per_target),
-                                target_neg.view(-1)])
+                                target_neg.view(-1)]).t()
     return pos_edge, neg_edge
 
 
