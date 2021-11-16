@@ -3,7 +3,8 @@ import torch
 from ogbk.negative_sample import *
 
 
-def get_pos_neg_edges(split, split_edge, edge_index=None, num_nodes=None, neg_sampler_name=None, num_neg=None):
+def get_pos_neg_edges(split, split_edge, edge_index=None,
+                      num_nodes=None, neg_sampler_name=None, num_neg=None):
     if 'edge' in split_edge['train']:
         pos_edge = split_edge[split]['edge']
         if split == 'train':
@@ -30,16 +31,17 @@ def get_pos_neg_edges(split, split_edge, edge_index=None, num_nodes=None, neg_sa
     elif 'source_node' in split_edge['train']:
         source = split_edge[split]['source_node']
         target = split_edge[split]['target_node']
+        pos_edge = torch.stack([source, target]).t()
         if split == 'train':
-            target_neg = torch.randint(0, num_nodes, [target.size(0), 1],
-                                       dtype=torch.long)
+            neg_edge = local_random_neg_sample(
+                pos_edge,
+                num_nodes=num_nodes,
+                num_neg=num_neg)
         else:
             target_neg = split_edge[split]['target_node_neg']
-
-        pos_edge = torch.stack([source, target]).t()
-        neg_per_target = target_neg.size(1)
-        neg_edge = torch.stack([source.repeat_interleave(neg_per_target),
-                                target_neg.view(-1)]).t()
+            neg_per_target = target_neg.size(1)
+            neg_edge = torch.stack([source.repeat_interleave(neg_per_target),
+                                    target_neg.view(-1)]).t()
     return pos_edge, neg_edge
 
 

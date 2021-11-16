@@ -15,7 +15,8 @@ def global_neg_sample(edge_index, num_nodes, num_samples,
         rand_index = torch.randperm(neg_edge.size(1))[:k]
         neg_src = torch.cat((neg_src, neg_src[rand_index]))
         neg_dst = torch.cat((neg_dst, neg_dst[rand_index]))
-    return torch.stack((neg_src, neg_dst), dim=-1)
+    return torch.reshape(torch.stack(
+        (neg_src, neg_dst), dim=-1), (-1, num_neg, 2))
 
 
 def global_perm_neg_sample(edge_index, num_nodes,
@@ -36,7 +37,8 @@ def global_perm_neg_sample(edge_index, num_nodes,
         rand_index = torch.randperm(num_samples)
         neg_src = torch.cat((neg_src, tmp_src[rand_index]))
         neg_dst = torch.cat((neg_dst, tmp_dst[rand_index]))
-    return torch.stack((neg_src, neg_dst), dim=-1)
+    return torch.reshape(torch.stack(
+        (neg_src, neg_dst), dim=-1), (-1, num_neg, 2))
 
 
 def local_random_neg_sample(pos_edges, num_nodes, num_neg):
@@ -46,4 +48,5 @@ def local_random_neg_sample(pos_edges, num_nodes, num_neg):
     neg_src = torch.reshape(neg_src, (-1,))
     neg_dst = torch.randint(
         0, num_nodes, (num_neg * pos_edges.size(0),), dtype=torch.long)
-    return torch.stack((neg_src, neg_dst), dim=-1)
+    return torch.reshape(torch.stack(
+        (neg_src, neg_dst), dim=-1), (-1, num_neg, 2))
