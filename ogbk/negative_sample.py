@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 import torch
-from torch_geometric.utils import negative_sampling
+from torch_geometric.utils import negative_sampling, add_self_loops
 
 
 def global_neg_sample(edge_index, num_nodes, num_samples,
                       num_neg, method='sparse'):
-    neg_edge = negative_sampling(edge_index, num_nodes=num_nodes,
+    new_edge_index, _ = add_self_loops(edge_index)
+    neg_edge = negative_sampling(new_edge_index, num_nodes=num_nodes,
                                  num_neg_samples=num_samples * num_neg, method=method)
     neg_src = neg_edge[0]
     neg_dst = neg_edge[1]
@@ -19,7 +20,8 @@ def global_neg_sample(edge_index, num_nodes, num_samples,
 
 def global_perm_neg_sample(edge_index, num_nodes,
                            num_samples, num_neg, method='sparse'):
-    neg_edge = negative_sampling(edge_index, num_nodes=num_nodes,
+    new_edge_index, _ = add_self_loops(edge_index)
+    neg_edge = negative_sampling(new_edge_index, num_nodes=num_nodes,
                                  num_neg_samples=num_samples, method=method)
     neg_src = neg_edge[0]
     neg_dst = neg_edge[1]

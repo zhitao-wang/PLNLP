@@ -29,6 +29,7 @@ def argument():
     parser.add_argument('--neg_sampler', type=str, default='global_perm')
     parser.add_argument('--data_name', type=str, default='ogbl-ppa')
     parser.add_argument('--data_path', type=str, default='dataset')
+    parser.add_argument('--eval_metric', type=str, default='hits')
     parser.add_argument('--gnn_num_layers', type=int, default=2)
     parser.add_argument('--mlp_num_layers', type=int, default=1)
     parser.add_argument('--hidden_channels', type=int, default=256)
@@ -146,11 +147,16 @@ def main():
 
     evaluator = Evaluator(name=args.data_name)
 
-    loggers = {
-        'Hits@20': Logger(args.runs, args),
-        'Hits@50': Logger(args.runs, args),
-        'Hits@100': Logger(args.runs, args),
-    }
+    if args.eval_metric == 'hits':
+        loggers = {
+            'Hits@20': Logger(args.runs, args),
+            'Hits@50': Logger(args.runs, args),
+            'Hits@100': Logger(args.runs, args),
+        }
+    elif args.eval_metric == 'mrr':
+        loggers = {
+            'MRR': Logger(args.runs, args),
+        }
 
     for run in range(args.runs):
         model.param_init()
@@ -158,20 +164,19 @@ def main():
         for epoch in range(1, 1 + args.epochs):
             loss = model.train(data, split_edge)
             if epoch % args.eval_steps == 0:
-                results = model.test(data, split_edge, evaluator)
+                results = model.test(data, split_edge, evaluator, args.eval_metric)
                 for key, result in results.items():
                     loggers[key].add_result(run, result)
                 if epoch % args.log_steps == 0:
                     spent_time = time.time() - start_time
                     for key, result in results.items():
-                        train_hits, valid_hits, test_hits = result
+                        valid_res, test_res = result
                         print(key)
                         print(f'Run: {run + 1:02d}, '
                               f'Epoch: {epoch:02d}, '
                               f'Loss: {loss:.4f}, '
-                              f'Train: {100 * train_hits:.2f}%, '
-                              f'Valid: {100 * valid_hits:.2f}%, '
-                              f'Test: {100 * test_hits:.2f}%')
+                              f'Valid: {100 * valid_res:.2f}%, '
+                              f'Test: {100 * test_res:.2f}%')
                     print('---')
                     print(
                         f'Training Time Per Epoch: {spent_time / args.eval_steps: .4f} s')

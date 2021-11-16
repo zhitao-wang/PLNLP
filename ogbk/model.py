@@ -3,6 +3,7 @@ from torch.utils.data import DataLoader
 from ogbk.layer import *
 from ogbk.negative_sample import *
 from ogbk.loss import *
+from ogbk.utils import *
 
 
 class Model(object):
@@ -123,29 +124,13 @@ class Model(object):
         self.encoder.train()
         self.predictor.train()
 
-        pos_train_edge = split_edge['train']['edge']
-        if self.neg_sampler_name == 'local':
-            neg_train_edge = local_random_neg_sample(
-                pos_train_edge,
-                num_nodes=self.num_nodes,
-                num_neg=self.num_neg).to(
-                self.device)
-        elif self.neg_sampler_name == 'global':
-            neg_train_edge = global_neg_sample(
-                data.edge_index,
-                num_nodes=self.num_nodes,
-                num_samples=pos_train_edge.size(0),
-                num_neg=self.num_neg).to(
-                self.device)
-        else:
-            neg_train_edge = global_perm_neg_sample(
-                data.edge_index,
-                num_nodes=self.num_nodes,
-                num_samples=pos_train_edge.size(0),
-                num_neg=self.num_neg).to(
-                self.device)
-
-        neg_train_edge = torch.reshape(neg_train_edge, (-1, self.num_neg, 2))
+        pos_train_edge, neg_train_edge = get_pos_neg_edges('train', split_edge,
+                                                           edge_index=data.edge_index,
+                                                           num_nodes=self.num_nodes,
+                                                           neg_sampler_name=self.neg_sampler_name,
+                                                           num_neg=self.num_neg)
+        pos_train_edge = pos_train_edge.to(self.device)
+        neg_train_edge = neg_train_edge.to(self.device)
 
         if self.use_node_features:
             if self.train_node_emb:
@@ -186,7 +171,7 @@ class Model(object):
         return total_loss / total_examples
 
     @torch.no_grad()
-    def test(self, data, split_edge, evaluator):
+    def test(self, data, split_edge, evaluator, eval_metric):
         self.encoder.eval()
         self.predictor.eval()
 
@@ -201,18 +186,12 @@ class Model(object):
 
         h = self.encoder(input_feat, data.adj_t)
 
-        pos_train_edge = split_edge['train']['edge'].to(self.device)
-        pos_valid_edge = split_edge['valid']['edge'].to(self.device)
-        neg_valid_edge = split_edge['valid']['edge_neg'].to(self.device)
-        pos_test_edge = split_edge['test']['edge'].to(self.device)
-        neg_test_edge = split_edge['test']['edge_neg'].to(self.device)
-
-        pos_train_preds = []
-        for perm in DataLoader(range(pos_train_edge.size(0)), self.batch_size):
-            edge = pos_train_edge[perm].t()
-            pos_train_preds += [self.predictor(h[edge[0]],
-                                               h[edge[1]]).squeeze().cpu()]
-        pos_train_pred = torch.cat(pos_train_preds, dim=0)
+        pos_valid_edge, neg_valid_edge = get_pos_neg_edges('valid', split_edge)
+        pos_test_edge, neg_test_edge = get_pos_neg_edges('test', split_edge)
+        pos_valid_edge = pos_valid_edge.to(self.device)
+        neg_valid_edge = neg_valid_edge.to(self.device)
+        pos_test_edge = pos_test_edge.to(self.device)
+        neg_test_edge = neg_test_edge.to(self.device)
 
         pos_valid_preds = []
         for perm in DataLoader(range(pos_valid_edge.size(0)), self.batch_size):
@@ -244,22 +223,19 @@ class Model(object):
                                               h[edge[1]]).squeeze().cpu()]
         neg_test_pred = torch.cat(neg_test_preds, dim=0)
 
-        results = {}
-        for topK in [20, 50, 100]:
-            evaluator.K = topK
-            train_hits = evaluator.eval({
-                'y_pred_pos': pos_train_pred,
-                'y_pred_neg': neg_valid_pred,
-            })[f'hits@{topK}']
-            valid_hits = evaluator.eval({
-                'y_pred_pos': pos_valid_pred,
-                'y_pred_neg': neg_valid_pred,
-            })[f'hits@{topK}']
-            test_hits = evaluator.eval({
-                'y_pred_pos': pos_test_pred,
-                'y_pred_neg': neg_test_pred,
-            })[f'hits@{topK}']
-
-            results[f'Hits@{topK}'] = (train_hits, valid_hits, test_hits)
+        if eval_metric == 'hits':
+            results = evaluate_hits(
+                evaluator,
+                pos_valid_pred,
+                neg_valid_pred,
+                pos_test_pred,
+                neg_test_pred)
+        elif eval_metric == 'mrr':
+            results = evaluate_mrr(
+                evaluator,
+                pos_valid_pred,
+                neg_valid_pred,
+                pos_test_pred,
+                neg_test_pred)
 
         return results
