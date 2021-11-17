@@ -97,9 +97,9 @@ def main():
             split_edge['train']['edge'] = split_edge['train']['edge'][selected_year_index]
             split_edge['train']['weight'] = split_edge['train']['weight'][selected_year_index]
             split_edge['train']['year'] = split_edge['train']['year'][selected_year_index]
-            train_edge_index = split_edge['train']['edge'].t()
-            data.adj_t = SparseTensor.from_edge_index(
-                train_edge_index).t().to_symmetric()
+            # train_edge_index = split_edge['train']['edge'].t()
+            # data.adj_t = SparseTensor.from_edge_index(
+            #     train_edge_index).t().to_symmetric()
 
         # Use training + validation edges for inference on test set.
         if args.use_valedges_as_input:
