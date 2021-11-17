@@ -207,7 +207,7 @@ class Model(object):
                                                h[edge[1]]).squeeze().cpu()]
         neg_valid_pred = torch.cat(neg_valid_preds, dim=0)
 
-        h = self.encoder(input_feat, data.full_adj_t)
+        h = self.encoder(input_feat, data.adj_t)
 
         pos_test_preds = []
         for perm in DataLoader(range(pos_test_edge.size(0)), self.batch_size):

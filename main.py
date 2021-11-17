@@ -64,6 +64,7 @@ def main():
 
     dataset = PygLinkPropPredDataset(name=args.data_name, root=args.data_path)
     data = dataset[0]
+
     if hasattr(data, 'edge_weight'):
         if data.edge_weight is not None:
             data.edge_weight = data.edge_weight.view(-1).to(torch.float)
@@ -85,35 +86,38 @@ def main():
     split_edge = dataset.get_edge_split()
     print(args)
 
-    if args.year > 0 and hasattr(data, 'edge_year'):
-        selected_year_index = torch.reshape(
-            (split_edge['train']['year'] >= args.year).nonzero(
-                as_tuple=False), (-1,))
-        split_edge['train']['edge'] = split_edge['train']['edge'][selected_year_index]
-        split_edge['train']['weight'] = split_edge['train']['weight'][selected_year_index]
-        split_edge['train']['year'] = split_edge['train']['year'][selected_year_index]
-        train_edge_index = split_edge['train']['edge'].t()
-        data.adj_t = SparseTensor.from_edge_index(
-            train_edge_index).t().to_symmetric()
+    if args.data_name == 'ogbl-citation2':
+        data.adj_t = data.adj_t.to_symmetric()
 
-    # Use training + validation edges for inference on test set.
-    if args.use_valedges_as_input:
-        val_edge_index = split_edge['valid']['edge'].t()
-        train_edge_index = split_edge['train']['edge'].t()
-        full_edge_index = torch.cat([train_edge_index, val_edge_index], dim=-1)
-        data.full_adj_t = SparseTensor.from_edge_index(full_edge_index).t()
-        data.full_adj_t = data.full_adj_t.to_symmetric()
-        data.adj_t = data.full_adj_t
-        row, col, _ = data.adj_t.coo()
-        data.edge_index = torch.stack([col, row], dim=0)
+    if args.data_name == 'ogbl-collab':
+        if args.year > 0 and hasattr(data, 'edge_year'):
+            selected_year_index = torch.reshape(
+                (split_edge['train']['year'] >= args.year).nonzero(
+                    as_tuple=False), (-1,))
+            split_edge['train']['edge'] = split_edge['train']['edge'][selected_year_index]
+            split_edge['train']['weight'] = split_edge['train']['weight'][selected_year_index]
+            split_edge['train']['year'] = split_edge['train']['year'][selected_year_index]
+            # train_edge_index = split_edge['train']['edge'].t()
+            # data.adj_t = SparseTensor.from_edge_index(
+            #     train_edge_index).t().to_symmetric()
 
-        if args.use_coalesce:
-            full_edge_index, _ = coalesce(full_edge_index, torch.ones(
-                [full_edge_index.size(1), 1], dtype=int), args.num_nodes, args.num_nodes)
+        # Use training + validation edges for inference on test set.
+        if args.use_valedges_as_input:
+            val_edge_index = split_edge['valid']['edge'].t()
+            train_edge_index = split_edge['train']['edge'].t()
+            full_edge_index = torch.cat([train_edge_index, val_edge_index], dim=-1)
+            data.adj_t = SparseTensor.from_edge_index(full_edge_index).t()
+            data.adj_t = data.adj_t.to_symmetric()
+            row, col, _ = data.adj_t.coo()
+            data.edge_index = torch.stack([col, row], dim=0)
 
-        split_edge['train']['edge'] = full_edge_index.t()
-    else:
-        data.full_adj_t = data.adj_t
+            if args.use_coalesce:
+                full_edge_index, _ = coalesce(full_edge_index, torch.ones(
+                    [full_edge_index.size(1), 1], dtype=int), args.num_nodes, args.num_nodes)
+
+            split_edge['train']['edge'] = full_edge_index.t()
+
+    data = data.to(device)
 
     if args.encoder == 'GCN':
         # Pre-compute GCN normalization.
@@ -123,9 +127,8 @@ def main():
         deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
         adj_t = deg_inv_sqrt.view(-1, 1) * adj_t * deg_inv_sqrt.view(1, -1)
         data.adj_t = adj_t
-        data.full_adj_t = adj_t
 
-    data = data.to(device)
+
     model = Model(
         lr=args.lr,
         dropout=args.dropout,
