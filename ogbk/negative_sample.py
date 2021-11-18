@@ -64,7 +64,6 @@ def local_neg_sample(pos_edges, num_nodes, num_neg):
 
 def local_perm_neg_sample(pos_edges, num_nodes, num_neg):
     neg_src = pos_edges[:, 0]
-    neg_src = torch.reshape(neg_src, (-1, 1)).repeat(1, num_neg)
     neg_src = torch.reshape(neg_src, (-1,))
     neg_dst = torch.randint(
         0, num_nodes, (pos_edges.size(0),), dtype=torch.long)
