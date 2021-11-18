@@ -52,12 +52,15 @@ def local_random_neg_sample(pos_edges, num_nodes, num_neg):
         (neg_src, neg_dst), dim=-1), (-1, num_neg, 2))
 
 
-def local_neg_sample(pos_edges, num_nodes, num_neg):
+def local_neg_sample(pos_edges, num_nodes, num_neg, device=None):
     neg_src = pos_edges[:, 0]
     neg_src = torch.reshape(neg_src, (-1, 1)).repeat(1, num_neg)
     neg_src = torch.reshape(neg_src, (-1,))
     neg_dst = torch.randint(
         0, num_nodes, (num_neg * pos_edges.size(0),), dtype=torch.long)
+    if device is not None:
+        neg_dst = neg_dst.to(device)
+        neg_src = neg_src.to(device)
     return torch.reshape(torch.stack(
         (neg_src, neg_dst), dim=-1), (-1, num_neg, 2))
 

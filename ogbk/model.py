@@ -164,7 +164,7 @@ class Model(object):
             pos_edge = pos_train_edge[perm].t()
             # neg_edge = global_perm_neg_sample(data.edge_index, self.num_nodes,
             #                pos_edge.size(1), self.num_neg)
-            neg_edge = local_neg_sample(pos_edge, self.num_nodes, self.num_neg)
+            neg_edge = local_neg_sample(pos_edge, self.num_nodes, self.num_neg, device=self.device)
             neg_edge = torch.reshape(neg_edge, (-1, 2)).t()
             # neg_edge = torch.reshape(neg_train_edge[perm], (-1, 2)).t()
             pos_out = self.predictor(h[pos_edge[0]], h[pos_edge[1]])
