@@ -34,7 +34,12 @@ def get_pos_neg_edges(split, split_edge, edge_index=None,
         pos_edge = torch.stack([source, target]).t()
         if split == 'train':
             if neg_sampler_name == 'local':
-                neg_edge = local_random_neg_sample(
+                neg_edge = local_neg_sample(
+                    pos_edge,
+                    num_nodes=num_nodes,
+                    num_neg=num_neg)
+            elif neg_sampler_name == 'local_perm':
+                neg_edge = local_perm_neg_sample(
                     pos_edge,
                     num_nodes=num_nodes,
                     num_neg=num_neg)
