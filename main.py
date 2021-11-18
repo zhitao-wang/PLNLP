@@ -4,9 +4,9 @@ import time
 import torch
 import torch_geometric.transforms as T
 from torch_sparse import coalesce, SparseTensor
+from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
 from ogbk.logger import Logger
 from ogbk.model import Model
-from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
 
 
 def str2bool(v):
@@ -32,6 +32,7 @@ def argument():
     parser.add_argument('--eval_metric', type=str, default='hits')
     parser.add_argument('--gnn_num_layers', type=int, default=2)
     parser.add_argument('--mlp_num_layers', type=int, default=1)
+    parser.add_argument('--num_hops', type=int, default=1)
     parser.add_argument('--hidden_channels', type=int, default=256)
     parser.add_argument('--dropout', type=float, default=0.0)
     parser.add_argument('--batch_size', type=int, default=64 * 1024)
@@ -128,6 +129,16 @@ def main():
         adj_t = deg_inv_sqrt.view(-1, 1) * adj_t * deg_inv_sqrt.view(1, -1)
         data.adj_t = adj_t
 
+    if args.num_hops > 1:
+        data.adj_t = data.adj_t.matmul(data.adj_t)
+        if args.encoder == 'GCN':
+            # Pre-compute GCN normalization.
+            adj_t = data.adj_t.set_diag()
+            deg = adj_t.sum(dim=1).to(torch.float)
+            deg_inv_sqrt = deg.pow(-0.5)
+            deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
+            adj_t = deg_inv_sqrt.view(-1, 1) * adj_t * deg_inv_sqrt.view(1, -1)
+            data.adj_t = adj_t
 
     model = Model(
         lr=args.lr,

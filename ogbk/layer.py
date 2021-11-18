@@ -105,6 +105,63 @@ class MLPPredictor(torch.nn.Module):
         return x
 
 
+class MLPDotPredictor(torch.nn.Module):
+    def __init__(self, in_channels, hidden_channels, out_channels, num_layers,
+                 dropout):
+        super(MLPDotPredictor, self).__init__()
+        self.lins = torch.nn.ModuleList()
+        self.lins.append(torch.nn.Linear(in_channels, hidden_channels))
+        for _ in range(num_layers - 1):
+            self.lins.append(
+                torch.nn.Linear(
+                    hidden_channels,
+                    hidden_channels))
+        self.dropout = dropout
+
+    def reset_parameters(self):
+        for lin in self.lins:
+            lin.reset_parameters()
+
+    def forward(self, x_i, x_j):
+        for lin in self.lins:
+            x_i, x_j = lin(x_i), lin(x_j)
+            x_i, x_j = F.relu(x_i), F.relu(x_j)
+            x_i, x_j = F.dropout(x_i, p=self.dropout, training=self.training), \
+                F.dropout(x_j, p=self.dropout, training=self.training)
+        x = torch.sum(x_i * x_j, dim=-1)
+        return x
+
+
+class MLPBilPredictor(torch.nn.Module):
+    def __init__(self, in_channels, hidden_channels, out_channels, num_layers,
+                 dropout):
+        super(MLPBilPredictor, self).__init__()
+        self.lins = torch.nn.ModuleList()
+        self.lins.append(torch.nn.Linear(in_channels, hidden_channels))
+        for _ in range(num_layers - 1):
+            self.lins.append(
+                torch.nn.Linear(
+                    hidden_channels,
+                    hidden_channels))
+        self.bilin = torch.nn.Linear(
+            hidden_channels, hidden_channels, bias=False)
+        self.dropout = dropout
+
+    def reset_parameters(self):
+        for lin in self.lins:
+            lin.reset_parameters()
+        self.bilin.reset_parameters()
+
+    def forward(self, x_i, x_j):
+        for lin in self.lins:
+            x_i, x_j = lin(x_i), lin(x_j)
+            x_i, x_j = F.relu(x_i), F.relu(x_j)
+            x_i, x_j = F.dropout(x_i, p=self.dropout, training=self.training), \
+                F.dropout(x_j, p=self.dropout, training=self.training)
+        x = torch.sum(self.bilinear_weight(x_i) * x_j, dim=-1)
+        return x
+
+
 class DotPredictor(torch.nn.Module):
     def __init__(self):
         super(DotPredictor, self).__init__()
@@ -120,11 +177,12 @@ class DotPredictor(torch.nn.Module):
 class BilinearPredictor(torch.nn.Module):
     def __init__(self, hidden_channels):
         super(BilinearPredictor, self).__init__()
-        self.lin = torch.nn.Linear(hidden_channels, hidden_channels)
+        self.bilin = torch.nn.Linear(
+            hidden_channels, hidden_channels, bias=False)
 
     def reset_parameters(self):
-        self.lin.reset_parameters()
+        self.bilin.reset_parameters()
 
     def forward(self, x_i, x_j):
-        x = torch.sum(self.lin(x_i) * x_j, dim=-1)
+        x = torch.sum(self.bilin(x_i) * x_j, dim=-1)
         return x

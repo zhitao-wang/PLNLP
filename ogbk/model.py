@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from torch.utils.data import DataLoader
 from ogbk.layer import *
-from ogbk.negative_sample import *
 from ogbk.loss import *
 from ogbk.utils import *
 
@@ -98,8 +97,24 @@ class Model(object):
             self.predictor = BilinearPredictor(
                 self.hidden_channels).to(
                 self.device)
-        else:
+        elif self.predictor_name == 'MLP':
             self.predictor = MLPPredictor(
+                self.hidden_channels,
+                self.hidden_channels,
+                1,
+                self.mlp_num_layers,
+                self.dropout).to(
+                self.device)
+        elif self.predictor_name == 'MLPDOT':
+            self.predictor = MLPDotPredictor(
+                self.hidden_channels,
+                self.hidden_channels,
+                1,
+                self.mlp_num_layers,
+                self.dropout).to(
+                self.device)
+        elif self.predictor_name == 'MLPBIL':
+            self.predictor = MLPBilPredictor(
                 self.hidden_channels,
                 self.hidden_channels,
                 1,
