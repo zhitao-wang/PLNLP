@@ -87,8 +87,8 @@ class Model(object):
                                self.hidden_channels, self.gnn_num_layers,
                                self.dropout).to(self.device)
         elif self.encoder_name == 'DIRGCN':
-            self.encoder = DIRGCN(self.input_dim, self.hidden_channels,
-                                  self.hidden_channels, self.gnn_num_layers,
+            self.encoder = DIRGCN(self.input_dim, int(self.hidden_channels/2),
+                                  int(self.hidden_channels/2), self.gnn_num_layers,
                                   self.dropout).to(self.device)
         else:
             self.encoder = SAGE(self.input_dim, self.hidden_channels,

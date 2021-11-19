@@ -57,44 +57,44 @@ class DIRGCN(torch.nn.Module):
             self.in_convs.append(
                 GCNConv(
                     in_channels,
-                    out_channels/2,
+                    out_channels,
                     normalize=False))
             self.out_convs.append(
                 GCNConv(
                     in_channels,
-                    out_channels/2,
+                    out_channels,
                     normalize=False))
         else:
             self.in_convs.append(
                 GCNConv(
                     in_channels,
-                    hidden_channels/2,
+                    hidden_channels,
                     normalize=False))
             self.out_convs.append(
                 GCNConv(
                     in_channels,
-                    hidden_channels/2,
+                    hidden_channels,
                     normalize=False))
             for _ in range(num_layers - 2):
                 self.in_convs.append(
                     GCNConv(
-                        hidden_channels/2,
-                        hidden_channels/2,
+                        hidden_channels,
+                        hidden_channels,
                         normalize=False))
                 self.out_convs.append(
                     GCNConv(
-                        hidden_channels/2,
-                        hidden_channels/2,
+                        hidden_channels,
+                        hidden_channels,
                         normalize=False))
             self.in_convs.append(
                 GCNConv(
-                    hidden_channels/2,
-                    out_channels/2,
+                    hidden_channels,
+                    out_channels,
                     normalize=False))
             self.out_convs.append(
                 GCNConv(
-                    hidden_channels/2,
-                    out_channels/2,
+                    hidden_channels,
+                    out_channels,
                     normalize=False))
         self.dropout = dropout
 
