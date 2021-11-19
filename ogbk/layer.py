@@ -57,12 +57,12 @@ class DIRGCN(torch.nn.Module):
             self.in_convs.append(
                 GCNConv(
                     in_channels,
-                    out_channels,
+                    out_channels/2,
                     normalize=False))
             self.out_convs.append(
                 GCNConv(
                     in_channels,
-                    out_channels,
+                    out_channels/2,
                     normalize=False))
         else:
             self.in_convs.append(
@@ -89,12 +89,12 @@ class DIRGCN(torch.nn.Module):
             self.in_convs.append(
                 GCNConv(
                     hidden_channels/2,
-                    out_channels,
+                    out_channels/2,
                     normalize=False))
             self.out_convs.append(
                 GCNConv(
                     hidden_channels/2,
-                    out_channels,
+                    out_channels/2,
                     normalize=False))
         self.dropout = dropout
 
