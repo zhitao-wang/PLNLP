@@ -86,6 +86,10 @@ class Model(object):
             self.encoder = GCN(self.input_dim, self.hidden_channels,
                                self.hidden_channels, self.gnn_num_layers,
                                self.dropout).to(self.device)
+        elif self.encoder_name == 'DIRGCN':
+            self.encoder = DIRGCN(self.input_dim, self.hidden_channels,
+                                  self.hidden_channels, self.gnn_num_layers,
+                                  self.dropout).to(self.device)
         else:
             self.encoder = SAGE(self.input_dim, self.hidden_channels,
                                 self.hidden_channels, self.gnn_num_layers,
@@ -160,7 +164,10 @@ class Model(object):
         for perm in DataLoader(range(pos_train_edge.size(0)), self.batch_size,
                                shuffle=True):
             self.optimizer.zero_grad()
-            h = self.encoder(input_feat, data.adj_t)
+            if self.encoder_name == 'DIRGCN':
+                h = self.encoder(input_feat, data.in_adj_t, data.out_adj_t)
+            else:
+                h = self.encoder(input_feat, data.adj_t)
             pos_edge = pos_train_edge[perm].t()
             neg_edge = torch.reshape(neg_train_edge[perm], (-1, 2)).t()
             pos_out = self.predictor(h[pos_edge[0]], h[pos_edge[1]])
@@ -199,7 +206,10 @@ class Model(object):
         else:
             input_feat = self.emb.weight
 
-        h = self.encoder(input_feat, data.adj_t)
+        if self.encoder_name == 'DIRGCN':
+            h = self.encoder(input_feat, data.in_adj_t, data.out_adj_t)
+        else:
+            h = self.encoder(input_feat, data.adj_t)
 
         pos_valid_edge, neg_valid_edge = get_pos_neg_edges('valid', split_edge)
         pos_test_edge, neg_test_edge = get_pos_neg_edges('test', split_edge)
@@ -222,7 +232,10 @@ class Model(object):
                                                h[edge[1]]).squeeze().cpu()]
         neg_valid_pred = torch.cat(neg_valid_preds, dim=0)
 
-        h = self.encoder(input_feat, data.adj_t)
+        if self.encoder_name == 'DIRGCN':
+            h = self.encoder(input_feat, data.in_adj_t, data.out_adj_t)
+        else:
+            h = self.encoder(input_feat, data.adj_t)
 
         pos_test_preds = []
         for perm in DataLoader(range(pos_test_edge.size(0)), self.batch_size):

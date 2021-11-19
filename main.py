@@ -7,6 +7,7 @@ from torch_sparse import coalesce, SparseTensor
 from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
 from ogbk.logger import Logger
 from ogbk.model import Model
+from ogbk.utils import gcn_normalization
 
 
 def str2bool(v):
@@ -88,7 +89,8 @@ def main():
     print(args)
 
     if args.data_name == 'ogbl-citation2':
-        data.adj_t = data.adj_t.to_symmetric()
+        if args.encoder != 'DIRGCN':
+            data.adj_t = data.adj_t.to_symmetric()
 
     if args.data_name == 'ogbl-collab':
         if args.year > 0 and hasattr(data, 'edge_year'):
@@ -122,23 +124,12 @@ def main():
 
     if args.encoder == 'GCN':
         # Pre-compute GCN normalization.
-        adj_t = data.adj_t.set_diag()
-        deg = adj_t.sum(dim=1).to(torch.float)
-        deg_inv_sqrt = deg.pow(-0.5)
-        deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
-        adj_t = deg_inv_sqrt.view(-1, 1) * adj_t * deg_inv_sqrt.view(1, -1)
-        data.adj_t = adj_t
+        data.adj_t = gcn_normalization(data.adj_t)
 
-    if args.num_hops > 1:
-        data.adj_t = data.adj_t.matmul(data.adj_t)
-        if args.encoder == 'GCN':
-            # Pre-compute GCN normalization.
-            adj_t = data.adj_t.set_diag()
-            deg = adj_t.sum(dim=1).to(torch.float)
-            deg_inv_sqrt = deg.pow(-0.5)
-            deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
-            adj_t = deg_inv_sqrt.view(-1, 1) * adj_t * deg_inv_sqrt.view(1, -1)
-            data.adj_t = adj_t
+    if args.encoder == 'DIRGCN':
+        # Pre-compute GCN normalization.
+        data.in_adj_t = gcn_normalization(data.adj_t)
+        data.out_adj_t = gcn_normalization(data.adj_t.t())
 
     model = Model(
         lr=args.lr,

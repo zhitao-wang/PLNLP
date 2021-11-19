@@ -100,3 +100,12 @@ def evaluate_mrr(evaluator, pos_val_pred, neg_val_pred,
     results['MRR'] = (valid_mrr, test_mrr)
 
     return results
+
+
+def gcn_normalization(adj_t):
+    adj_t = adj_t.set_diag()
+    deg = adj_t.sum(dim=1).to(torch.float)
+    deg_inv_sqrt = deg.pow(-0.5)
+    deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
+    adj_t = deg_inv_sqrt.view(-1, 1) * adj_t * deg_inv_sqrt.view(1, -1)
+    return adj_t
