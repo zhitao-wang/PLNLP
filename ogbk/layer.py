@@ -158,7 +158,7 @@ class MLPBilPredictor(torch.nn.Module):
             x_i, x_j = F.relu(x_i), F.relu(x_j)
             x_i, x_j = F.dropout(x_i, p=self.dropout, training=self.training), \
                 F.dropout(x_j, p=self.dropout, training=self.training)
-        x = torch.sum(self.bilinear_weight(x_i) * x_j, dim=-1)
+        x = torch.sum(self.bilin(x_i) * x_j, dim=-1)
         return x
 
 
