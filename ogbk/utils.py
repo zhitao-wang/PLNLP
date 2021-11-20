@@ -1,61 +1,50 @@
 # -*- coding: utf-8 -*-
 import torch
+import numpy as np
 from ogbk.negative_sample import *
 
 
 def get_pos_neg_edges(split, split_edge, edge_index=None,
-                      num_nodes=None, neg_sampler_name=None, num_neg=None):
+                      num_nodes=None, neg_sampler_name=None, num_neg=None, neg_dist_table=None):
     if 'edge' in split_edge['train']:
         pos_edge = split_edge[split]['edge']
-        if split == 'train':
-            if neg_sampler_name == 'local':
-                neg_edge = local_random_neg_sample(
-                    pos_edge,
-                    num_nodes=num_nodes,
-                    num_neg=num_neg)
-            elif neg_sampler_name == 'global':
-                neg_edge = global_neg_sample(
-                    edge_index,
-                    num_nodes=num_nodes,
-                    num_samples=pos_edge.size(0),
-                    num_neg=num_neg)
-            else:
-                neg_edge = global_perm_neg_sample(
-                    edge_index,
-                    num_nodes=num_nodes,
-                    num_samples=pos_edge.size(0),
-                    num_neg=num_neg)
-        else:
-            neg_edge = split_edge[split]['edge_neg']
-
     elif 'source_node' in split_edge['train']:
         source = split_edge[split]['source_node']
         target = split_edge[split]['target_node']
         pos_edge = torch.stack([source, target]).t()
-        if split == 'train':
-            if neg_sampler_name == 'local':
-                neg_edge = local_neg_sample(
-                    pos_edge,
-                    num_nodes=num_nodes,
-                    num_neg=num_neg)
-            elif neg_sampler_name == 'local_perm':
-                neg_edge = local_perm_neg_sample(
-                    pos_edge,
-                    num_nodes=num_nodes,
-                    num_neg=num_neg)
-            elif neg_sampler_name == 'global':
-                neg_edge = global_neg_sample(
-                    edge_index,
-                    num_nodes=num_nodes,
-                    num_samples=pos_edge.size(0),
-                    num_neg=num_neg)
-            else:
-                neg_edge = global_perm_neg_sample(
-                    edge_index,
-                    num_nodes=num_nodes,
-                    num_samples=pos_edge.size(0),
-                    num_neg=num_neg)
+
+    if split == 'train':
+        if neg_sampler_name == 'local':
+            neg_edge = local_neg_sample(
+                pos_edge,
+                num_nodes=num_nodes,
+                num_neg=num_neg)
+        elif neg_sampler_name == 'local_perm':
+            neg_edge = local_perm_neg_sample(
+                pos_edge,
+                num_nodes=num_nodes,
+                num_neg=num_neg)
+        elif neg_sampler_name == 'local_dist':
+            neg_edge = local_dist_neg_sample(
+                pos_edge,
+                num_neg=num_neg,
+                neg_table=neg_dist_table)
+        elif neg_sampler_name == 'global':
+            neg_edge = global_neg_sample(
+                edge_index,
+                num_nodes=num_nodes,
+                num_samples=pos_edge.size(0),
+                num_neg=num_neg)
         else:
+            neg_edge = global_perm_neg_sample(
+                edge_index,
+                num_nodes=num_nodes,
+                num_samples=pos_edge.size(0),
+                num_neg=num_neg)
+    else:
+        if 'edge' in split_edge['train']:
+            neg_edge = split_edge[split]['edge_neg']
+        elif 'source_node' in split_edge['train']:
             target_neg = split_edge[split]['target_node_neg']
             neg_per_target = target_neg.size(1)
             neg_edge = torch.stack([source.repeat_interleave(neg_per_target),
@@ -109,3 +98,24 @@ def gcn_normalization(adj_t):
     deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
     adj_t = deg_inv_sqrt.view(-1, 1) * adj_t * deg_inv_sqrt.view(1, -1)
     return adj_t
+
+
+def generate_neg_dist_table(num_nodes, adj_t, power=0.75, table_size=1e8):
+    table_size = int(table_size)
+    adj_t = adj_t.set_diag()
+    node_degree = adj_t.sum(dim=1).to(torch.float)
+    node_degree = node_degree.pow(power)
+
+    norm = float((node_degree).sum())  # float is faster than tensor when visited
+    node_degree = node_degree.tolist()  # list has fastest visit speed
+    sample_table = np.zeros(table_size, dtype=np.int32)
+    p = 0
+    i = 0
+    for j in range(num_nodes):
+        p += node_degree[j] / norm
+        while i < table_size and float(i) / float(table_size) < p:
+            sample_table[i] = j
+            i += 1
+    sample_table = torch.from_numpy(sample_table)
+    return sample_table
+

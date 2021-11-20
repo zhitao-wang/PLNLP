@@ -46,7 +46,7 @@ class Model(object):
     """
 
     def __init__(self, lr, dropout, gnn_num_layers, mlp_num_layers, hidden_channels, batch_size, num_nodes, num_node_features,
-                 num_neg, gnn_encoder, predictor, loss_func, neg_sampler, optimizer, device, use_node_features, train_node_emb):
+                 num_neg, gnn_encoder, predictor, loss_func, neg_sampler, optimizer, device, use_node_features, train_node_emb, neg_dist_table):
         self.lr = lr
         self.dropout = dropout
         self.gnn_num_layers = gnn_num_layers
@@ -64,6 +64,7 @@ class Model(object):
         self.num_node_features = num_node_features
         self.train_node_emb = train_node_emb
         self.device = device
+        self.neg_dist_table = neg_dist_table
 
         if self.use_node_features:
             self.input_dim = self.num_node_features
@@ -147,7 +148,8 @@ class Model(object):
                                                            edge_index=data.edge_index,
                                                            num_nodes=self.num_nodes,
                                                            neg_sampler_name=self.neg_sampler_name,
-                                                           num_neg=self.num_neg)
+                                                           num_neg=self.num_neg,
+                                                           neg_dist_table=self.neg_dist_table)
         pos_train_edge = pos_train_edge.to(self.device)
         neg_train_edge = neg_train_edge.to(self.device)
 

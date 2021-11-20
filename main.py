@@ -7,7 +7,7 @@ from torch_sparse import coalesce, SparseTensor
 from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
 from ogbk.logger import Logger
 from ogbk.model import Model
-from ogbk.utils import gcn_normalization
+from ogbk.utils import gcn_normalization, generate_neg_dist_table
 
 
 def str2bool(v):
@@ -45,8 +45,6 @@ def argument():
     parser.add_argument('--eval_steps', type=int, default=10)
     parser.add_argument('--runs', type=int, default=10)
     parser.add_argument('--year', type=int, default=-1)
-    parser.add_argument('--num_nodes', type=int)
-    parser.add_argument('--num_node_features', type=int)
     parser.add_argument('--use_node_features', type=str2bool, default=False)
     parser.add_argument('--use_coalesce', type=str2bool, default=False)
     parser.add_argument('--train_node_emb', type=str2bool, default=False)
@@ -62,7 +60,6 @@ def main():
     args = argument()
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
-    args.device = device
 
     dataset = PygLinkPropPredDataset(name=args.data_name, root=args.data_path)
     data = dataset[0]
@@ -78,12 +75,16 @@ def main():
     if hasattr(data, 'x'):
         if data.x is not None:
             data.x = data.x.to(torch.float)
+
     if hasattr(data, 'num_features'):
-        args.num_node_features = data.num_features
-    if hasattr(data, 'num_nodes'):
-        args.num_nodes = data.num_nodes
+        num_node_features = data.num_features
     else:
-        args.num_nodes = data.adj_t.size(0)
+        num_node_features = 0
+
+    if hasattr(data, 'num_nodes'):
+        num_nodes = data.num_nodes
+    else:
+        num_nodes = data.adj_t.size(0)
 
     split_edge = dataset.get_edge_split()
     print(args)
@@ -120,6 +121,11 @@ def main():
 
             split_edge['train']['edge'] = full_edge_index.t()
 
+    if args.neg_sampler == 'local_dist':
+        neg_dist_table = generate_neg_dist_table(num_nodes, data.adj_t, power=0.75, table_size=1e8)
+    else:
+        neg_dist_table = None
+
     data = data.to(device)
 
     if args.encoder == 'GCN':
@@ -138,17 +144,19 @@ def main():
         mlp_num_layers=args.mlp_num_layers,
         hidden_channels=args.hidden_channels,
         batch_size=args.batch_size,
-        num_nodes=args.num_nodes,
-        num_node_features=args.num_node_features,
+        num_nodes=num_nodes,
+        num_node_features=num_node_features,
         num_neg=args.num_neg,
         gnn_encoder=args.encoder,
         predictor=args.predictor,
         loss_func=args.loss_func,
         neg_sampler=args.neg_sampler,
         optimizer=args.optimizer,
-        device=args.device,
+        device=device,
         use_node_features=args.use_node_features,
-        train_node_emb=args.train_node_emb)
+        train_node_emb=args.train_node_emb,
+        neg_dist_table=neg_dist_table
+        )
 
     evaluator = Evaluator(name=args.data_name)
 
