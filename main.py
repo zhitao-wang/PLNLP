@@ -40,7 +40,6 @@ def argument():
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--num_neg', type=int, default=1)
     parser.add_argument('--epochs', type=int, default=400)
-    parser.add_argument('--device', type=int, default=0)
     parser.add_argument('--log_steps', type=int, default=1)
     parser.add_argument('--eval_steps', type=int, default=10)
     parser.add_argument('--runs', type=int, default=10)
@@ -122,7 +121,9 @@ def main():
             split_edge['train']['edge'] = full_edge_index.t()
 
     if args.neg_sampler == 'local_dist':
+        print('Creating negative distribution table.')
         neg_dist_table = generate_neg_dist_table(num_nodes, data.adj_t, power=0.75, table_size=1e8)
+        print('Finish.')
     else:
         neg_dist_table = None
 
