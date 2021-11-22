@@ -44,6 +44,7 @@ def argument():
     parser.add_argument('--eval_steps', type=int, default=10)
     parser.add_argument('--runs', type=int, default=10)
     parser.add_argument('--year', type=int, default=-1)
+    parser.add_argument('--device', type=int, default=0)
     parser.add_argument('--use_node_features', type=str2bool, default=False)
     parser.add_argument('--use_coalesce', type=str2bool, default=False)
     parser.add_argument('--train_node_emb', type=str2bool, default=False)
