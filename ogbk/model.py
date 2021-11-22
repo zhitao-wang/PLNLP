@@ -46,7 +46,7 @@ class Model(object):
     """
 
     def __init__(self, lr, dropout, gnn_num_layers, mlp_num_layers, hidden_channels, batch_size, num_nodes, num_node_features,
-                 num_neg, gnn_encoder, predictor, loss_func, neg_sampler, optimizer, device, use_node_features, train_node_emb, neg_dist_table):
+                 num_neg, gnn_encoder, predictor, loss_func, neg_sampler, optimizer, device, use_node_features, train_node_emb):
         self.lr = lr
         self.dropout = dropout
         self.gnn_num_layers = gnn_num_layers
@@ -64,7 +64,6 @@ class Model(object):
         self.num_node_features = num_node_features
         self.train_node_emb = train_node_emb
         self.device = device
-        self.neg_dist_table = neg_dist_table
 
         if self.use_node_features:
             self.input_dim = self.num_node_features
@@ -87,10 +86,6 @@ class Model(object):
             self.encoder = GCN(self.input_dim, self.hidden_channels,
                                self.hidden_channels, self.gnn_num_layers,
                                self.dropout).to(self.device)
-        elif self.encoder_name == 'DIRGCN':
-            self.encoder = DIRGCN(self.input_dim, int(self.hidden_channels/2),
-                                  int(self.hidden_channels/2), self.gnn_num_layers,
-                                  self.dropout).to(self.device)
         else:
             self.encoder = SAGE(self.input_dim, self.hidden_channels,
                                 self.hidden_channels, self.gnn_num_layers,
@@ -148,8 +143,7 @@ class Model(object):
                                                            edge_index=data.edge_index,
                                                            num_nodes=self.num_nodes,
                                                            neg_sampler_name=self.neg_sampler_name,
-                                                           num_neg=self.num_neg,
-                                                           neg_dist_table=self.neg_dist_table)
+                                                           num_neg=self.num_neg)
         pos_train_edge = pos_train_edge.to(self.device)
         neg_train_edge = neg_train_edge.to(self.device)
 
@@ -166,10 +160,8 @@ class Model(object):
         for perm in DataLoader(range(pos_train_edge.size(0)), self.batch_size,
                                shuffle=True):
             self.optimizer.zero_grad()
-            if self.encoder_name == 'DIRGCN':
-                h = self.encoder(input_feat, data.in_adj_t, data.out_adj_t)
-            else:
-                h = self.encoder(input_feat, data.adj_t)
+
+            h = self.encoder(input_feat, data.adj_t)
             pos_edge = pos_train_edge[perm].t()
             neg_edge = torch.reshape(neg_train_edge[perm], (-1, 2)).t()
             pos_out = self.predictor(h[pos_edge[0]], h[pos_edge[1]])
@@ -208,10 +200,7 @@ class Model(object):
         else:
             input_feat = self.emb.weight
 
-        if self.encoder_name == 'DIRGCN':
-            h = self.encoder(input_feat, data.in_adj_t, data.out_adj_t)
-        else:
-            h = self.encoder(input_feat, data.adj_t)
+        h = self.encoder(input_feat, data.adj_t)
 
         pos_valid_edge, neg_valid_edge = get_pos_neg_edges('valid', split_edge)
         pos_test_edge, neg_test_edge = get_pos_neg_edges('test', split_edge)
@@ -234,10 +223,7 @@ class Model(object):
                                                h[edge[1]]).squeeze().cpu()]
         neg_valid_pred = torch.cat(neg_valid_preds, dim=0)
 
-        if self.encoder_name == 'DIRGCN':
-            h = self.encoder(input_feat, data.in_adj_t, data.out_adj_t)
-        else:
-            h = self.encoder(input_feat, data.adj_t)
+        h = self.encoder(input_feat, data.adj_t)
 
         pos_test_preds = []
         for perm in DataLoader(range(pos_test_edge.size(0)), self.batch_size):

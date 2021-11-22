@@ -89,8 +89,7 @@ def main():
     print(args)
 
     if args.data_name == 'ogbl-citation2':
-        if args.encoder != 'DIRGCN':
-            data.adj_t = data.adj_t.to_symmetric()
+        data.adj_t = data.adj_t.to_symmetric()
 
     if args.data_name == 'ogbl-collab':
         if args.year > 0 and hasattr(data, 'edge_year'):
@@ -116,27 +115,15 @@ def main():
 
             if args.use_coalesce:
                 full_edge_index, _ = coalesce(full_edge_index, torch.ones(
-                    [full_edge_index.size(1), 1], dtype=int), args.num_nodes, args.num_nodes)
+                    [full_edge_index.size(1), 1], dtype=int), num_nodes, num_nodes)
 
             split_edge['train']['edge'] = full_edge_index.t()
-
-    if args.neg_sampler == 'local_dist':
-        print('Creating negative distribution table.')
-        neg_dist_table = generate_neg_dist_table(num_nodes, data.adj_t, power=0.75, table_size=1e8)
-        print('Finish.')
-    else:
-        neg_dist_table = None
 
     data = data.to(device)
 
     if args.encoder == 'GCN':
         # Pre-compute GCN normalization.
         data.adj_t = gcn_normalization(data.adj_t)
-
-    if args.encoder == 'DIRGCN':
-        # Pre-compute GCN normalization.
-        data.in_adj_t = gcn_normalization(data.adj_t)
-        data.out_adj_t = gcn_normalization(data.adj_t.t())
 
     model = Model(
         lr=args.lr,
@@ -155,8 +142,7 @@ def main():
         optimizer=args.optimizer,
         device=device,
         use_node_features=args.use_node_features,
-        train_node_emb=args.train_node_emb,
-        neg_dist_table=neg_dist_table
+        train_node_emb=args.train_node_emb
         )
 
     evaluator = Evaluator(name=args.data_name)
