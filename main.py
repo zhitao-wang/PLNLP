@@ -3,11 +3,12 @@ import argparse
 import time
 import torch
 import torch_geometric.transforms as T
+from torch_geometric.nn.pool.avg_pool import avg_pool_neighbor_x
 from torch_sparse import coalesce, SparseTensor
 from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
 from ogbk.logger import Logger
 from ogbk.model import Model
-from ogbk.utils import gcn_normalization, generate_neg_dist_table
+from ogbk.utils import gcn_normalization
 
 
 def str2bool(v):
@@ -48,6 +49,7 @@ def argument():
     parser.add_argument('--use_node_features', type=str2bool, default=False)
     parser.add_argument('--use_coalesce', type=str2bool, default=False)
     parser.add_argument('--train_node_emb', type=str2bool, default=False)
+    parser.add_argument('--pre_aggregate', type=str2bool, default=False)
     parser.add_argument(
         '--use_valedges_as_input',
         type=str2bool,
@@ -71,10 +73,6 @@ def main():
     data = T.ToSparseTensor()(data)
     row, col, _ = data.adj_t.coo()
     data.edge_index = torch.stack([col, row], dim=0)
-
-    if hasattr(data, 'x'):
-        if data.x is not None:
-            data.x = data.x.to(torch.float)
 
     if hasattr(data, 'num_features'):
         num_node_features = data.num_features
@@ -119,6 +117,12 @@ def main():
                     [full_edge_index.size(1), 1], dtype=int), num_nodes, num_nodes)
 
             split_edge['train']['edge'] = full_edge_index.t()
+
+    if hasattr(data, 'x'):
+        if data.x is not None:
+            data.x = data.x.to(torch.float)
+        if args.pre_aggregate:
+            data = avg_pool_neighbor_x(data)
 
     data = data.to(device)
 
