@@ -132,7 +132,7 @@ def main():
         # Pre-compute GCN normalization.
         data.adj_t = gcn_normalization(data.adj_t)
 
-    model_name = 'NCModel' if args.model.lower() == 'ncmodel' else 'Model'
+    model_name = 'NCModel' if args.model.lower() == 'ncmodel' else 'BaseModel'
     model = eval(model_name)(
         lr=args.lr,
         dropout=args.dropout,
