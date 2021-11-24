@@ -7,7 +7,7 @@ from torch_geometric.nn.pool.avg_pool import avg_pool_neighbor_x
 from torch_sparse import coalesce, SparseTensor
 from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
 from ogbk.logger import Logger
-from ogbk.model import Model
+from ogbk.model import Model, NCModel
 from ogbk.utils import gcn_normalization
 
 
@@ -32,6 +32,7 @@ def argument():
     parser.add_argument('--data_name', type=str, default='ogbl-ppa')
     parser.add_argument('--data_path', type=str, default='dataset')
     parser.add_argument('--eval_metric', type=str, default='hits')
+    parser.add_argument('--model', type=str, default='base')
     parser.add_argument('--gnn_num_layers', type=int, default=2)
     parser.add_argument('--mlp_num_layers', type=int, default=1)
     parser.add_argument('--num_hops', type=int, default=1)
@@ -130,7 +131,8 @@ def main():
         # Pre-compute GCN normalization.
         data.adj_t = gcn_normalization(data.adj_t)
 
-    model = Model(
+    model_name = 'NCModel' if args.model.lower() == 'ncmodel' else 'Model'
+    model = eval(model_name)(
         lr=args.lr,
         dropout=args.dropout,
         gnn_num_layers=args.gnn_num_layers,
