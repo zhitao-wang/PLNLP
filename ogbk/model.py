@@ -131,13 +131,12 @@ class BaseModel(object):
         pos_train_edge, neg_train_edge = pos_train_edge.to(
             self.device), neg_train_edge.to(self.device)
 
-        input_feat = self.create_input_feat(data)
-
         total_loss = total_examples = 0
         for perm in DataLoader(range(pos_train_edge.size(0)), batch_size,
                                shuffle=True):
             self.optimizer.zero_grad()
 
+            input_feat = self.create_input_feat(data)
             h = self.encoder(input_feat, data.adj_t)
             pos_edge = pos_train_edge[perm].t()
             neg_edge = torch.reshape(neg_train_edge[perm], (-1, 2)).t()

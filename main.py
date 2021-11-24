@@ -76,10 +76,12 @@ def main():
     row, col, _ = data.adj_t.coo()
     data.edge_index = torch.stack([col, row], dim=0)
 
-    if hasattr(data, 'num_feats'):
+    if hasattr(data, 'num_features'):
         num_node_feats = data.num_features
     else:
         num_node_feats = 0
+
+    print(num_node_feats)
 
     if hasattr(data, 'num_nodes'):
         num_nodes = data.num_nodes
