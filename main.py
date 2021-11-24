@@ -7,7 +7,7 @@ from torch_geometric.nn.pool.avg_pool import avg_pool_neighbor_x
 from torch_sparse import coalesce, SparseTensor
 from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
 from ogbk.logger import Logger
-from ogbk.model import Model, NCModel
+from ogbk.model import BaseModel, NCModel
 from ogbk.utils import gcn_normalization
 
 
@@ -47,9 +47,10 @@ def argument():
     parser.add_argument('--runs', type=int, default=10)
     parser.add_argument('--year', type=int, default=-1)
     parser.add_argument('--device', type=int, default=0)
-    parser.add_argument('--use_node_features', type=str2bool, default=False)
+    parser.add_argument('--use_node_feats', type=str2bool, default=False)
     parser.add_argument('--use_coalesce', type=str2bool, default=False)
     parser.add_argument('--train_node_emb', type=str2bool, default=False)
+    parser.add_argument('--node_feat_trans', type=str2bool, default=False)
     parser.add_argument('--pre_aggregate', type=str2bool, default=False)
     parser.add_argument(
         '--use_valedges_as_input',
@@ -75,10 +76,10 @@ def main():
     row, col, _ = data.adj_t.coo()
     data.edge_index = torch.stack([col, row], dim=0)
 
-    if hasattr(data, 'num_features'):
-        num_node_features = data.num_features
+    if hasattr(data, 'num_feats'):
+        num_node_feats = data.num_features
     else:
-        num_node_features = 0
+        num_node_feats = 0
 
     if hasattr(data, 'num_nodes'):
         num_nodes = data.num_nodes
@@ -138,18 +139,16 @@ def main():
         gnn_num_layers=args.gnn_num_layers,
         mlp_num_layers=args.mlp_num_layers,
         hidden_channels=args.hidden_channels,
-        batch_size=args.batch_size,
         num_nodes=num_nodes,
-        num_node_features=num_node_features,
-        num_neg=args.num_neg,
-        gnn_encoder=args.encoder,
-        predictor=args.predictor,
+        num_node_feats=num_node_feats,
+        gnn_encoder_name=args.encoder,
+        predictor_name=args.predictor,
         loss_func=args.loss_func,
-        neg_sampler=args.neg_sampler,
-        optimizer=args.optimizer,
+        optimizer_name=args.optimizer,
         device=device,
-        use_node_features=args.use_node_features,
-        train_node_emb=args.train_node_emb
+        use_node_feats=args.use_node_feats,
+        train_node_emb=args.train_node_emb,
+        node_feat_trans=args.node_feat_trans
         )
 
     evaluator = Evaluator(name=args.data_name)
@@ -169,9 +168,15 @@ def main():
         model.param_init()
         start_time = time.time()
         for epoch in range(1, 1 + args.epochs):
-            loss = model.train(data, split_edge)
+            loss = model.train(data, split_edge,
+                               batch_size=args.batch_size,
+                               neg_sampler_name=args.neg_sampler,
+                               num_neg=args.num_neg)
             if epoch % args.eval_steps == 0:
-                results = model.test(data, split_edge, evaluator, args.eval_metric)
+                results = model.test(data, split_edge,
+                                     batch_size=args.batch_size,
+                                     evaluator=evaluator,
+                                     eval_metric=args.eval_metric)
                 for key, result in results.items():
                     loggers[key].add_result(run, result)
                 if epoch % args.log_steps == 0:
