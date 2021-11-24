@@ -423,14 +423,10 @@ class NCModel(object):
             neg_edge = torch.reshape(neg_train_edge[perm], (-1, 2)).t()
             pos_out_hh = self.predictor(h[pos_edge[0]], h[pos_edge[1]])
             pos_out_cc = self.predictor(c[pos_edge[0]], c[pos_edge[1]])
-            pos_out_hc = self.predictor(h[pos_edge[0]], c[pos_edge[1]])
-            pos_out_ch = self.predictor(c[pos_edge[0]], h[pos_edge[1]])
-            pos_out = pos_out_hh + pos_out_cc + pos_out_hc + pos_out_ch
+            pos_out = pos_out_hh + pos_out_cc
             neg_out_hh = self.predictor(h[neg_edge[0]], h[neg_edge[1]])
             neg_out_cc = self.predictor(c[neg_edge[0]], c[neg_edge[1]])
-            neg_out_hc = self.predictor(h[neg_edge[0]], c[neg_edge[1]])
-            neg_out_ch = self.predictor(c[neg_edge[0]], h[neg_edge[1]])
-            neg_out = neg_out_hh + neg_out_cc + neg_out_hc + neg_out_ch
+            neg_out = neg_out_hh + neg_out_cc
             if self.loss_func_name == 'CE':
                 loss = ce_loss(pos_out, neg_out)
             elif self.loss_func_name == 'InfoNCE':
@@ -480,9 +476,7 @@ class NCModel(object):
             edge = pos_valid_edge[perm].t()
             out_hh = self.predictor(h[edge[0]], h[edge[1]])
             out_cc = self.predictor(c[edge[0]], c[edge[1]])
-            out_hc = self.predictor(h[edge[0]], c[edge[1]])
-            out_ch = self.predictor(c[edge[0]], h[edge[1]])
-            out = out_hh + out_cc + out_hc + out_ch
+            out = out_hh + out_cc
             pos_valid_preds += [out.squeeze().cpu()]
         pos_valid_pred = torch.cat(pos_valid_preds, dim=0)
 
@@ -491,9 +485,7 @@ class NCModel(object):
             edge = neg_valid_edge[perm].t()
             out_hh = self.predictor(h[edge[0]], h[edge[1]])
             out_cc = self.predictor(c[edge[0]], c[edge[1]])
-            out_hc = self.predictor(h[edge[0]], c[edge[1]])
-            out_ch = self.predictor(c[edge[0]], h[edge[1]])
-            out = out_hh + out_cc + out_hc + out_ch
+            out = out_hh + out_cc
             neg_valid_preds += [out.squeeze().cpu()]
         neg_valid_pred = torch.cat(neg_valid_preds, dim=0)
 
@@ -502,9 +494,7 @@ class NCModel(object):
             edge = pos_test_edge[perm].t()
             out_hh = self.predictor(h[edge[0]], h[edge[1]])
             out_cc = self.predictor(c[edge[0]], c[edge[1]])
-            out_hc = self.predictor(h[edge[0]], c[edge[1]])
-            out_ch = self.predictor(c[edge[0]], h[edge[1]])
-            out = out_hh + out_cc + out_hc + out_ch
+            out = out_hh + out_cc
             pos_test_preds += [out.squeeze().cpu()]
         pos_test_pred = torch.cat(pos_test_preds, dim=0)
 
@@ -513,9 +503,7 @@ class NCModel(object):
             edge = neg_test_edge[perm].t()
             out_hh = self.predictor(h[edge[0]], h[edge[1]])
             out_cc = self.predictor(c[edge[0]], c[edge[1]])
-            out_hc = self.predictor(h[edge[0]], c[edge[1]])
-            out_ch = self.predictor(c[edge[0]], h[edge[1]])
-            out = out_hh + out_cc + out_hc + out_ch
+            out = out_hh + out_cc
             neg_test_preds += [out.squeeze().cpu()]
         neg_test_pred = torch.cat(neg_test_preds, dim=0)
 
