@@ -58,8 +58,6 @@ class BaseModel(object):
                                                                            use_node_feats=use_node_feats,
                                                                            train_node_emb=train_node_emb,
                                                                            node_feat_trans=node_feat_trans)
-        if self.emb is not None:
-            self.emb = self.emb.to(device)
         if self.feat_trans_lin is not None:
             self.feat_trans_lin = self.feat_trans_lin.to(device)
 
