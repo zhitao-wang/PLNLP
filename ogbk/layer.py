@@ -105,6 +105,41 @@ class MLPPredictor(torch.nn.Module):
         return x
 
 
+class MLPCatPredictor(torch.nn.Module):
+    def __init__(self, in_channels, hidden_channels, out_channels, num_layers,
+                 dropout):
+        super(MLPPredictor, self).__init__()
+        self.lins = torch.nn.ModuleList()
+        if num_layers < 2:
+            self.lins.append(torch.nn.Linear(hidden_channels, out_channels))
+        else:
+            self.lins.append(torch.nn.Linear(in_channels, hidden_channels))
+            for _ in range(num_layers - 2):
+                self.lins.append(
+                    torch.nn.Linear(
+                        hidden_channels,
+                        hidden_channels))
+            self.lins.append(torch.nn.Linear(hidden_channels, out_channels))
+        self.dropout = dropout
+
+    def reset_parameters(self):
+        for lin in self.lins:
+            lin.reset_parameters()
+
+    def forward(self, x_i, x_j):
+        x1 = torch.cat([x_i, x_j], dim=-1)
+        x2 = torch.cat([x_j, x_i], dim=-1)
+        for lin in self.lins[:-1]:
+            x1, x2 = lin(x1), lin(x2)
+            x1, x2 = F.relu(x1), F.relu(x2),
+            x1 = F.dropout(x1, p=self.dropout, training=self.training)
+            x2 = F.dropout(x2, p=self.dropout, training=self.training)
+        x1 = self.lins[-1](x1)
+        x2 = self.lins[-1](x2)
+        x = (x1 + x2)/2
+        return x
+
+
 class MLPDotPredictor(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels, num_layers,
                  dropout):

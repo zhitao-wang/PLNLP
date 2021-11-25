@@ -376,3 +376,5 @@ def create_predictor_layer(hidden_channels=256, num_layers=2, dropout=0, predict
         return MLPDotPredictor(hidden_channels, hidden_channels, 1, num_layers, dropout)
     elif predictor_name == 'MLPBIL':
         return MLPBilPredictor(hidden_channels, hidden_channels, 1, num_layers, dropout)
+    elif predictor_name == 'MLPCAT':
+        return MLPCatPredictor(hidden_channels, hidden_channels, 1, num_layers, dropout)
