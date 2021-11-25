@@ -108,7 +108,7 @@ class MLPPredictor(torch.nn.Module):
 class MLPCatPredictor(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels, num_layers,
                  dropout):
-        super(MLPPredictor, self).__init__()
+        super(MLPCatPredictor, self).__init__()
         self.lins = torch.nn.ModuleList()
         in_channels = 2 * in_channels
         if num_layers < 2:
