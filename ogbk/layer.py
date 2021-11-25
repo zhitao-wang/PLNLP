@@ -80,7 +80,7 @@ class MLPPredictor(torch.nn.Module):
         super(MLPPredictor, self).__init__()
         self.lins = torch.nn.ModuleList()
         if num_layers < 2:
-            self.lins.append(torch.nn.Linear(hidden_channels, out_channels))
+            self.lins.append(torch.nn.Linear(in_channels, out_channels))
         else:
             self.lins.append(torch.nn.Linear(in_channels, hidden_channels))
             for _ in range(num_layers - 2):
@@ -110,8 +110,9 @@ class MLPCatPredictor(torch.nn.Module):
                  dropout):
         super(MLPPredictor, self).__init__()
         self.lins = torch.nn.ModuleList()
+        in_channels = 2 * in_channels
         if num_layers < 2:
-            self.lins.append(torch.nn.Linear(hidden_channels, out_channels))
+            self.lins.append(torch.nn.Linear(in_channels, out_channels))
         else:
             self.lins.append(torch.nn.Linear(in_channels, hidden_channels))
             for _ in range(num_layers - 2):
