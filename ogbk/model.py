@@ -40,9 +40,9 @@ class BaseModel(object):
             whether to train node embeddings based on node id
     """
 
-    def __init__(self, lr, dropout, gnn_num_layers, mlp_num_layers, hidden_channels, num_nodes, num_node_feats,
-                 gnn_encoder_name, predictor_name, loss_func, optimizer_name, device, use_node_feats, train_node_emb,
-                 node_feat_trans):
+    def __init__(self, lr, dropout, gnn_num_layers, mlp_num_layers, emb_hidden_channels, gnn_hidden_channels,
+                 mlp_hidden_channels, num_nodes, num_node_feats, gnn_encoder_name, predictor_name, loss_func,
+                 optimizer_name, device, use_node_feats, train_node_emb, node_feat_trans):
         self.loss_func_name = loss_func
         self.num_nodes = num_nodes
         self.num_node_feats = num_node_feats
@@ -54,23 +54,25 @@ class BaseModel(object):
         # Input Layer
         self.input_dim, self.emb, self.feat_trans_lin = create_input_layer(num_nodes=num_nodes,
                                                                            num_node_feats=num_node_feats,
-                                                                           hidden_channels=hidden_channels,
+                                                                           hidden_channels=emb_hidden_channels,
                                                                            use_node_feats=use_node_feats,
                                                                            train_node_emb=train_node_emb,
                                                                            node_feat_trans=node_feat_trans)
+        if self.emb is not None:
+            self.emb = self.emb.to(device)
         if self.feat_trans_lin is not None:
             self.feat_trans_lin = self.feat_trans_lin.to(device)
 
         # GNN Layer
         self.encoder = create_gnn_layer(input_dim=self.input_dim,
-                                        hidden_channels=hidden_channels,
+                                        hidden_channels=gnn_hidden_channels,
                                         num_layers=gnn_num_layers,
                                         dropout=dropout,
                                         encoder_name=gnn_encoder_name)
         self.encoder = self.encoder.to(device)
 
         # Predict Layer
-        self.predictor = create_predictor_layer(hidden_channels=hidden_channels,
+        self.predictor = create_predictor_layer(hidden_channels=mlp_hidden_channels,
                                                 num_layers=mlp_num_layers,
                                                 dropout=dropout,
                                                 predictor_name=predictor_name)
@@ -206,30 +208,12 @@ class BaseModel(object):
 
 
 class NCModel(BaseModel):
-    def __init__(self, lr, dropout, gnn_num_layers, mlp_num_layers, hidden_channels, num_nodes, num_node_feats,
-                 gnn_encoder_name, predictor_name, loss_func, optimizer_name, device, use_node_feats, train_node_emb,
-                 node_feat_trans):
-        BaseModel.__init__(self, lr, dropout, gnn_num_layers, mlp_num_layers, hidden_channels, num_nodes,
-                           num_node_feats, gnn_encoder_name, predictor_name, loss_func, optimizer_name, device,
-                           use_node_feats, train_node_emb, node_feat_trans)
-
-        # Reconstruct Predict Layer
-        self.predictor = create_predictor_layer(hidden_channels=2*hidden_channels,
-                                                num_layers=mlp_num_layers,
-                                                dropout=dropout,
-                                                predictor_name=predictor_name)
-        self.predictor = self.predictor.to(device)
-
-        # Reconstruct Parameters and Optimizer
-        para_list = list(self.encoder.parameters()) + list(self.predictor.parameters())
-        if self.emb is not None:
-            para_list += list(self.emb.parameters())
-        if self.feat_trans_lin is not None:
-            para_list += list(self.feat_trans_lin.parameters())
-        if optimizer_name == 'AdamW':
-            self.optimizer = torch.optim.AdamW(para_list, lr=lr)
-        else:
-            self.optimizer = torch.optim.Adam(para_list, lr=lr)
+    def __init__(self, lr, dropout, gnn_num_layers, mlp_num_layers, emb_hidden_channels, gnn_hidden_channels,
+                 mlp_hidden_channels, num_nodes, num_node_feats, gnn_encoder_name, predictor_name, loss_func,
+                 optimizer_name, device, use_node_feats, train_node_emb, node_feat_trans):
+        BaseModel.__init__(self, lr, dropout, gnn_num_layers, mlp_num_layers, emb_hidden_channels, gnn_hidden_channels,
+                           mlp_hidden_channels, num_nodes, num_node_feats, gnn_encoder_name, predictor_name, loss_func,
+                           optimizer_name, device, use_node_feats, train_node_emb, node_feat_trans)
 
     def train(self, data, split_edge, batch_size, neg_sampler_name, num_neg):
         self.encoder.train()

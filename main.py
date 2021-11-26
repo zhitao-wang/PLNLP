@@ -2,6 +2,7 @@
 import argparse
 import time
 import torch
+import os
 import torch_geometric.transforms as T
 from torch_geometric.nn.pool.avg_pool import avg_pool_neighbor_x
 from torch_sparse import coalesce, SparseTensor
@@ -33,17 +34,20 @@ def argument():
     parser.add_argument('--data_path', type=str, default='dataset')
     parser.add_argument('--eval_metric', type=str, default='hits')
     parser.add_argument('--model', type=str, default='base')
+    parser.add_argument('--res_dir', type=str, default='')
     parser.add_argument('--gnn_num_layers', type=int, default=2)
     parser.add_argument('--mlp_num_layers', type=int, default=1)
     parser.add_argument('--num_hops', type=int, default=1)
-    parser.add_argument('--hidden_channels', type=int, default=256)
+    parser.add_argument('--emb_hidden_channels', type=int, default=256)
+    parser.add_argument('--gnn_hidden_channels', type=int, default=256)
+    parser.add_argument('--mlp_hidden_channels', type=int, default=256)
     parser.add_argument('--dropout', type=float, default=0.0)
     parser.add_argument('--batch_size', type=int, default=64 * 1024)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--num_neg', type=int, default=1)
     parser.add_argument('--epochs', type=int, default=400)
     parser.add_argument('--log_steps', type=int, default=1)
-    parser.add_argument('--eval_steps', type=int, default=10)
+    parser.add_argument('--eval_steps', type=int, default=1)
     parser.add_argument('--runs', type=int, default=10)
     parser.add_argument('--year', type=int, default=-1)
     parser.add_argument('--device', type=int, default=0)
@@ -90,6 +94,10 @@ def main():
 
     split_edge = dataset.get_edge_split()
     print(args)
+    log_file_name = 'log_' + str(int(time.time())) + '.txt'
+    log_file = os.path.join(args.res_dir, log_file_name)
+    with open(log_file, 'a') as f:
+        f.write(str(args) + '\n')
 
     if args.data_name == 'ogbl-citation2':
         data.adj_t = data.adj_t.to_symmetric()
@@ -140,7 +148,9 @@ def main():
         dropout=args.dropout,
         gnn_num_layers=args.gnn_num_layers,
         mlp_num_layers=args.mlp_num_layers,
-        hidden_channels=args.hidden_channels,
+        emb_hidden_channels=args.emb_hidden_channels,
+        gnn_hidden_channels=args.gnn_hidden_channels,
+        mlp_hidden_channels=args.mlp_hidden_channels,
         num_nodes=num_nodes,
         num_node_feats=num_node_feats,
         gnn_encoder_name=args.encoder,
@@ -185,12 +195,16 @@ def main():
                     spent_time = time.time() - start_time
                     for key, result in results.items():
                         valid_res, test_res = result
+                        to_print = (f'Run: {run + 1:02d}, '
+                                    f'Epoch: {epoch:02d}, '
+                                    f'Loss: {loss:.4f}, '
+                                    f'Valid: {100 * valid_res:.2f}%, '
+                                    f'Test: {100 * test_res:.2f}%')
                         print(key)
-                        print(f'Run: {run + 1:02d}, '
-                              f'Epoch: {epoch:02d}, '
-                              f'Loss: {loss:.4f}, '
-                              f'Valid: {100 * valid_res:.2f}%, '
-                              f'Test: {100 * test_res:.2f}%')
+                        print(to_print)
+                        with open(log_file, 'a') as f:
+                            print(key, file=f)
+                            print(to_print, file=f)
                     print('---')
                     print(
                         f'Training Time Per Epoch: {spent_time / args.eval_steps: .4f} s')
@@ -200,10 +214,16 @@ def main():
         for key in loggers.keys():
             print(key)
             loggers[key].print_statistics(run)
+            with open(log_file, 'a') as f:
+                print(key, file=f)
+                loggers[key].print_statistics(run, f=f)
 
     for key in loggers.keys():
         print(key)
         loggers[key].print_statistics()
+        with open(log_file, 'a') as f:
+            print(key, file=f)
+            loggers[key].print_statistics(f=f)
 
 
 if __name__ == "__main__":
