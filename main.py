@@ -138,6 +138,9 @@ def main():
 
     data = data.to(device)
 
+    if args.num_hops > 1:
+        data.adj_t = data.adj_t.matmul(data.adj_t)
+
     if args.encoder == 'GCN':
         # Pre-compute GCN normalization.
         data.adj_t = gcn_normalization(data.adj_t)
