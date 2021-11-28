@@ -35,7 +35,7 @@ def argument():
     parser.add_argument('--eval_metric', type=str, default='hits')
     parser.add_argument('--model', type=str, default='base')
     parser.add_argument('--res_dir', type=str, default='')
-    parser.add_argument('--pretrain_emb', type=str, default=None)
+    parser.add_argument('--pretrain_emb', type=str, default='')
     parser.add_argument('--gnn_num_layers', type=int, default=2)
     parser.add_argument('--mlp_num_layers', type=int, default=1)
     parser.add_argument('--num_hops', type=int, default=1)

@@ -332,13 +332,13 @@ def create_input_layer(num_nodes, num_node_feats, hidden_channels,
         if train_node_emb:
             emb = torch.nn.Embedding(num_nodes, hidden_channels)
             input_dim += hidden_channels
-        elif pretrain_emb is not None:
+        elif pretrain_emb is not None and pretrain_emb != '':
             weight = torch.load(pretrain_emb)
             emb = torch.nn.Embedding.from_pretrained(weight)
             emb.weight.requires_grad = False
             input_dim += emb.weight.size(1)
     else:
-        if pretrain_emb is not None:
+        if pretrain_emb is not None and pretrain_emb != '':
             weight = torch.load(pretrain_emb)
             emb = torch.nn.Embedding.from_pretrained(weight)
             emb.weight.requires_grad = False
