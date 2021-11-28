@@ -42,7 +42,7 @@ class BaseModel(object):
 
     def __init__(self, lr, dropout, gnn_num_layers, mlp_num_layers, emb_hidden_channels, gnn_hidden_channels,
                  mlp_hidden_channels, num_nodes, num_node_feats, gnn_encoder_name, predictor_name, loss_func,
-                 optimizer_name, device, use_node_feats, train_node_emb, node_feat_trans):
+                 optimizer_name, device, use_node_feats, train_node_emb, pretrain_emb, node_feat_trans):
         self.loss_func_name = loss_func
         self.num_nodes = num_nodes
         self.num_node_feats = num_node_feats
@@ -57,6 +57,7 @@ class BaseModel(object):
                                                                            hidden_channels=emb_hidden_channels,
                                                                            use_node_feats=use_node_feats,
                                                                            train_node_emb=train_node_emb,
+                                                                           pretrain_emb=pretrain_emb,
                                                                            node_feat_trans=node_feat_trans)
         if self.emb is not None:
             self.emb = self.emb.to(device)
@@ -210,10 +211,10 @@ class BaseModel(object):
 class NCModel(BaseModel):
     def __init__(self, lr, dropout, gnn_num_layers, mlp_num_layers, emb_hidden_channels, gnn_hidden_channels,
                  mlp_hidden_channels, num_nodes, num_node_feats, gnn_encoder_name, predictor_name, loss_func,
-                 optimizer_name, device, use_node_feats, train_node_emb, node_feat_trans):
+                 optimizer_name, device, use_node_feats, train_node_emb, pretrain_emb, node_feat_trans):
         BaseModel.__init__(self, lr, dropout, gnn_num_layers, mlp_num_layers, emb_hidden_channels, gnn_hidden_channels,
                            mlp_hidden_channels, num_nodes, num_node_feats, gnn_encoder_name, predictor_name, loss_func,
-                           optimizer_name, device, use_node_feats, train_node_emb, node_feat_trans)
+                           optimizer_name, device, use_node_feats, train_node_emb, pretrain_emb, node_feat_trans)
 
     def train(self, data, split_edge, batch_size, neg_sampler_name, num_neg):
         self.encoder.train()
@@ -318,7 +319,7 @@ class NCModel(BaseModel):
 
 
 def create_input_layer(num_nodes, num_node_feats, hidden_channels,
-                       use_node_feats=True, train_node_emb=False, node_feat_trans=False):
+                       use_node_feats=True, train_node_emb=False, pretrain_emb=None, node_feat_trans=False):
     emb = None
     feat_trans_lin = None
     if use_node_feats:
@@ -329,15 +330,22 @@ def create_input_layer(num_nodes, num_node_feats, hidden_channels,
         else:
             input_dim = num_node_feats
         if train_node_emb:
-            emb = torch.nn.Embedding(
-                num_nodes,
-                hidden_channels)
+            emb = torch.nn.Embedding(num_nodes, hidden_channels)
             input_dim += hidden_channels
+        elif pretrain_emb is not None:
+            weight = torch.load(pretrain_emb)
+            emb = torch.nn.Embedding.from_pretrained(weight)
+            emb.weight.requires_grad = False
+            input_dim += emb.weight.size(1)
     else:
-        emb = torch.nn.Embedding(
-            num_nodes,
-            hidden_channels)
-        input_dim = hidden_channels
+        if pretrain_emb is not None:
+            weight = torch.load(pretrain_emb)
+            emb = torch.nn.Embedding.from_pretrained(weight)
+            emb.weight.requires_grad = False
+            input_dim = emb.weight.size(1)
+        else:
+            emb = torch.nn.Embedding(num_nodes, hidden_channels)
+            input_dim = hidden_channels
     return input_dim, emb, feat_trans_lin
 
 

@@ -14,6 +14,12 @@ def adaptive_auc_loss(margin, pos_out, neg_out, num_neg):
     return torch.square(margin - (pos_out - neg_out)).sum()
 
 
+def sigmoid_auc_loss(pos_out, neg_out, num_neg):
+    pos_out = torch.reshape(pos_out, (-1, 1))
+    neg_out = torch.reshape(neg_out, (-1, num_neg))
+    return torch.square(1 - torch.sigmoid(pos_out - neg_out)).mean()
+
+
 def log_rank_loss(pos_out, neg_out, num_neg):
     pos_out = torch.reshape(pos_out, (-1, 1))
     neg_out = torch.reshape(neg_out, (-1, num_neg))
