@@ -4,6 +4,7 @@ import time
 import torch
 import os
 import torch_geometric.transforms as T
+from torch_geometric.utils import to_undirected
 from torch_geometric.nn.pool.avg_pool import avg_pool_neighbor_x
 from torch_sparse import coalesce, SparseTensor
 from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
@@ -57,7 +58,7 @@ def argument():
     parser.add_argument('--train_node_emb', type=str2bool, default=False)
     parser.add_argument('--node_feat_trans', type=str2bool, default=False)
     parser.add_argument('--pre_aggregate', type=str2bool, default=False)
-    parser.add_argument('--neg_sample_train_node_ids', type=str2bool, default=False)
+    parser.add_argument('--only_neg_train_nodes', type=str2bool, default=False)
     parser.add_argument(
         '--use_valedges_as_input',
         type=str2bool,
@@ -114,26 +115,27 @@ def main():
             split_edge['train']['weight'] = split_edge['train']['weight'][selected_year_index]
             split_edge['train']['year'] = split_edge['train']['year'][selected_year_index]
             train_edge_index = split_edge['train']['edge'].t()
-            data.adj_t = SparseTensor.from_edge_index(
-                train_edge_index).t().to_symmetric()
+            # create adjacency matrix
+            new_edges = to_undirected(train_edge_index, split_edge['train']['weight'], reduce='add')
+            new_edge_index, new_edge_weight = new_edges[0], new_edges[1]
+            data.adj_t = SparseTensor(row=new_edge_index[0], col=new_edge_index[1], value=new_edge_weight)
 
         # Use training + validation edges for inference on test set.
         if args.use_valedges_as_input:
-            val_edge_index = split_edge['valid']['edge'].t()
-            train_edge_index = split_edge['train']['edge'].t()
-            full_edge_index = torch.cat([train_edge_index, val_edge_index], dim=-1)
-            data.adj_t = SparseTensor.from_edge_index(full_edge_index).t()
-            data.adj_t = data.adj_t.to_symmetric()
-            row, col, _ = data.adj_t.coo()
-            data.edge_index = torch.stack([col, row], dim=0)
+            full_edge_index = torch.cat([split_edge['valid']['edge'].t(), split_edge['train']['edge'].t()], dim=-1)
+            full_edge_weight = torch.cat([split_edge['train']['weight'], split_edge['valid']['weight']], dim=-1)
+            # create adjacency matrix
+            new_edges = to_undirected(full_edge_index, full_edge_weight, reduce='add')
+            new_edge_index, new_edge_weight = new_edges[0], new_edges[1]
+            data.adj_t = SparseTensor(row=new_edge_index[0], col=new_edge_index[1], value=new_edge_weight)
 
             if args.use_coalesce:
-                full_edge_index, _ = coalesce(full_edge_index, torch.ones(
-                    [full_edge_index.size(1), 1], dtype=int), num_nodes, num_nodes)
+                full_edge_index, full_edge_weight = coalesce(full_edge_index, full_edge_weight, num_nodes, num_nodes)
 
             split_edge['train']['edge'] = full_edge_index.t()
+            split_edge['train']['weight'] = full_edge_weight
 
-        if args.neg_sample_train_node_ids:
+        if args.only_neg_train_nodes:
             row, col, _ = data.adj_t.coo()
             selected_node_set = set(row.tolist()).union(set(col.tolist()))
             selected_node_ids = torch.tensor(list(selected_node_set))

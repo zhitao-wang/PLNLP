@@ -110,13 +110,15 @@ class BaseModel(object):
             input_feat = self.emb.weight
         return input_feat
 
-    def calculate_loss(self, pos_out, neg_out, num_neg):
+    def calculate_loss(self, pos_out, neg_out, num_neg, margin=None):
         if self.loss_func_name == 'CE':
             loss = ce_loss(pos_out, neg_out)
         elif self.loss_func_name == 'InfoNCE':
             loss = info_nce_loss(pos_out, neg_out, num_neg)
         elif self.loss_func_name == 'LogRank':
             loss = log_rank_loss(pos_out, neg_out, num_neg)
+        elif self.loss_func_name == 'AdaAUC' and margin is not None:
+            loss = adaptive_auc_loss(margin, pos_out, neg_out, num_neg)
         else:
             loss = auc_loss(pos_out, neg_out, num_neg)
         return loss
@@ -148,7 +150,11 @@ class BaseModel(object):
             pos_out = self.predictor(h[pos_edge[0]], h[pos_edge[1]])
             neg_out = self.predictor(h[neg_edge[0]], h[neg_edge[1]])
 
-            loss = self.calculate_loss(pos_out, neg_out, num_neg)
+            edge_weight_margin = None
+            if 'weight' in split_edge['train']:
+                edge_weight_margin = split_edge['train']['weight'][perm]
+
+            loss = self.calculate_loss(pos_out, neg_out, num_neg, margin=edge_weight_margin)
             loss.backward()
 
             torch.nn.utils.clip_grad_norm_(self.encoder.parameters(), 1.0)
