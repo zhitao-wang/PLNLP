@@ -103,6 +103,7 @@ def main():
     if args.data_name == 'ogbl-citation2':
         data.adj_t = data.adj_t.to_symmetric()
 
+    selected_node_ids = None
     if args.data_name == 'ogbl-collab':
         if args.year > 0 and hasattr(data, 'edge_year'):
             selected_year_index = torch.reshape(
@@ -130,6 +131,10 @@ def main():
                     [full_edge_index.size(1), 1], dtype=int), num_nodes, num_nodes)
 
             split_edge['train']['edge'] = full_edge_index.t()
+
+        row, col, _ = data.adj_t.coo()
+        selected_node_set = set(row.tolist()).union(set(col.tolist()))
+        selected_node_ids = torch.tensor(list(selected_node_set)).to(device)
 
     if hasattr(data, 'x'):
         if data.x is not None:
@@ -188,7 +193,8 @@ def main():
             loss = model.train(data, split_edge,
                                batch_size=args.batch_size,
                                neg_sampler_name=args.neg_sampler,
-                               num_neg=args.num_neg)
+                               num_neg=args.num_neg,
+                               node_ids=selected_node_ids)
             if epoch % args.eval_steps == 0:
                 results = model.test(data, split_edge,
                                      batch_size=args.batch_size,
