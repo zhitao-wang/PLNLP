@@ -133,7 +133,7 @@ def main():
                 full_edge_index, full_edge_weight = coalesce(full_edge_index, full_edge_weight, num_nodes, num_nodes)
 
             split_edge['train']['edge'] = full_edge_index.t()
-            split_edge['train']['weight'] = full_edge_weight
+            split_edge['train']['weight'] = full_edge_weight/torch.max(full_edge_weight)
 
         if args.only_neg_train_nodes:
             row, col, _ = data.adj_t.coo()

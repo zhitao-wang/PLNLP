@@ -137,6 +137,11 @@ class BaseModel(object):
         pos_train_edge, neg_train_edge = pos_train_edge.to(
             self.device), neg_train_edge.to(self.device)
 
+        if 'weight' in split_edge['train']:
+            edge_weight_margin = split_edge['train']['weight'].to(self.device)
+        else:
+            edge_weight_margin = None
+
         total_loss = total_examples = 0
         for perm in DataLoader(range(pos_train_edge.size(0)), batch_size,
                                shuffle=True):
@@ -150,11 +155,9 @@ class BaseModel(object):
             pos_out = self.predictor(h[pos_edge[0]], h[pos_edge[1]])
             neg_out = self.predictor(h[neg_edge[0]], h[neg_edge[1]])
 
-            edge_weight_margin = None
-            if 'weight' in split_edge['train']:
-                edge_weight_margin = split_edge['train']['weight'][perm]
+            weight_margin = edge_weight_margin[perm] if edge_weight_margin is not None else None
 
-            loss = self.calculate_loss(pos_out, neg_out, num_neg, margin=edge_weight_margin)
+            loss = self.calculate_loss(pos_out, neg_out, num_neg, margin=weight_margin)
             loss.backward()
 
             torch.nn.utils.clip_grad_norm_(self.encoder.parameters(), 1.0)
