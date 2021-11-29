@@ -118,7 +118,9 @@ class BaseModel(object):
         elif self.loss_func_name == 'LogRank':
             loss = log_rank_loss(pos_out, neg_out, num_neg)
         elif self.loss_func_name == 'AdaAUC' and margin is not None:
-            loss = adaptive_auc_loss(margin, pos_out, neg_out, num_neg)
+            loss = adaptive_auc_loss(pos_out, neg_out, num_neg, margin)
+        elif self.loss_func_name == 'SigAdaAUC' and margin is not None:
+            loss = sigmoid_adaptive_auc_loss(pos_out, neg_out, num_neg, margin)
         else:
             loss = auc_loss(pos_out, neg_out, num_neg)
         return loss
