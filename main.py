@@ -57,6 +57,7 @@ def argument():
     parser.add_argument('--train_node_emb', type=str2bool, default=False)
     parser.add_argument('--node_feat_trans', type=str2bool, default=False)
     parser.add_argument('--pre_aggregate', type=str2bool, default=False)
+    parser.add_argument('--neg_sample_train_node_ids', type=str2bool, default=False)
     parser.add_argument(
         '--use_valedges_as_input',
         type=str2bool,
@@ -132,9 +133,10 @@ def main():
 
             split_edge['train']['edge'] = full_edge_index.t()
 
-        row, col, _ = data.adj_t.coo()
-        selected_node_set = set(row.tolist()).union(set(col.tolist()))
-        selected_node_ids = torch.tensor(list(selected_node_set)).to(device)
+        if args.neg_sample_train_node_ids:
+            row, col, _ = data.adj_t.coo()
+            selected_node_set = set(row.tolist()).union(set(col.tolist()))
+            selected_node_ids = torch.tensor(list(selected_node_set))
 
     if hasattr(data, 'x'):
         if data.x is not None:

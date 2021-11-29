@@ -18,20 +18,10 @@ def get_pos_neg_edges(split, split_edge, edge_index=None,
             neg_edge = local_neg_sample(
                 pos_edge,
                 num_nodes=num_nodes,
-                num_neg=num_neg)
-        elif neg_sampler_name == 'local_perm':
-            neg_edge = local_perm_neg_sample(
-                pos_edge,
-                num_nodes=num_nodes,
-                num_neg=num_neg)
+                num_neg=num_neg,
+                node_ids=node_ids)
         elif neg_sampler_name == 'global':
             neg_edge = global_neg_sample(
-                edge_index,
-                num_nodes=num_nodes,
-                num_samples=pos_edge.size(0),
-                num_neg=num_neg)
-        elif neg_sampler_name == 'global_with_node_ids' and node_ids is not None:
-            neg_edge = global_neg_sample_with_ids(
                 edge_index,
                 num_nodes=num_nodes,
                 num_samples=pos_edge.size(0),
@@ -42,7 +32,8 @@ def get_pos_neg_edges(split, split_edge, edge_index=None,
                 edge_index,
                 num_nodes=num_nodes,
                 num_samples=pos_edge.size(0),
-                num_neg=num_neg)
+                num_neg=num_neg,
+                node_ids=node_ids)
     else:
         if 'edge' in split_edge['train']:
             neg_edge = split_edge[split]['edge_neg']
