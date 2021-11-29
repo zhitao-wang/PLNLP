@@ -101,7 +101,7 @@ def global_neg_sample_with_ids(edge_index, num_nodes, num_samples, num_neg, node
     alpha = abs(1 / (1 - 1.2 * (edge_index.size(1) / size)))
 
     pair_ids = torch.randint(
-        0, node_ids.size(0), (2, alpha * num_samples), dtype=torch.long)
+        0, node_ids.size(0), (2, int(alpha * num_samples)), dtype=torch.long)
     sampled_pairs = node_ids[pair_ids]
 
     perm = sampled_pairs[0] * num_nodes + sampled_pairs[1]
