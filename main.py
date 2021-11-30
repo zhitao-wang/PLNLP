@@ -10,7 +10,7 @@ from torch_sparse import coalesce, SparseTensor
 from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
 from ogbk.logger import Logger
 from ogbk.model import BaseModel, NCModel
-from ogbk.utils import gcn_normalization
+from ogbk.utils import gcn_normalization, adj_normalization
 
 
 def str2bool(v):
@@ -120,7 +120,9 @@ def main():
             # create adjacency matrix
             new_edges = to_undirected(train_edge_index, split_edge['train']['weight'], reduce='add')
             new_edge_index, new_edge_weight = new_edges[0], new_edges[1]
-            data.adj_t = SparseTensor(row=new_edge_index[0], col=new_edge_index[1], value=new_edge_weight)
+            data.adj_t = SparseTensor(row=new_edge_index[0],
+                                      col=new_edge_index[1],
+                                      value=new_edge_weight.to(torch.float32))
             data.edge_index = new_edge_index
 
         # Use training + validation edges for inference on test set.
@@ -130,7 +132,9 @@ def main():
             # create adjacency matrix
             new_edges = to_undirected(full_edge_index, full_edge_weight, reduce='add')
             new_edge_index, new_edge_weight = new_edges[0], new_edges[1]
-            data.adj_t = SparseTensor(row=new_edge_index[0], col=new_edge_index[1], value=new_edge_weight)
+            data.adj_t = SparseTensor(row=new_edge_index[0],
+                                      col=new_edge_index[1],
+                                      value=new_edge_weight.to(torch.float32))
             data.edge_index = new_edge_index
 
             if args.use_coalesce:
@@ -138,10 +142,14 @@ def main():
 
             if args.edge_weight_repeat:
                 split_edge['train']['edge'] = torch.repeat_interleave(full_edge_index.t(), full_edge_weight, dim=0)
-                split_edge['train']['weight'] = torch.ones(split_edge['train']['edge'].size(0))
+                split_edge['train']['weight'] = torch.ones(split_edge['train']['edge'].size(0), dtype=torch.float32)
             else:
                 split_edge['train']['edge'] = full_edge_index.t()
-                split_edge['train']['weight'] = full_edge_weight / torch.max(full_edge_weight)
+                deg = data.adj_t.sum(dim=1).to(torch.float)
+                deg_inv_sqrt = deg.pow(-0.5)
+                deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
+                split_edge['train']['weight'] = deg_inv_sqrt[full_edge_index[0]] * full_edge_weight * deg_inv_sqrt[
+                    full_edge_index[1]]
 
         if args.only_neg_train_nodes:
             row, col, _ = data.adj_t.coo()
@@ -156,12 +164,15 @@ def main():
 
     data = data.to(device)
 
-    if args.num_hops > 1:
-        data.adj_t = data.adj_t.matmul(data.adj_t)
+    # if args.num_hops > 1:
+    #     data.adj_t = data.adj_t.matmul(data.adj_t)
 
-    if args.encoder == 'GCN':
+    if args.encoder.upper() == 'GCN':
         # Pre-compute GCN normalization.
         data.adj_t = gcn_normalization(data.adj_t)
+
+    if args.encoder.upper() == 'WSAGE':
+        data.adj_t = adj_normalization(data.adj_t)
 
     model_name = 'NCModel' if args.model.lower() == 'ncmodel' else 'BaseModel'
     model = eval(model_name)(

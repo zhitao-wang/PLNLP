@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import torch
 import torch.nn.functional as F
-from torch_geometric.nn import SAGEConv, GCNConv
+from torch_geometric.nn import SAGEConv, GCNConv, GraphConv
 
 
 class GCN(torch.nn.Module):
@@ -59,6 +59,33 @@ class SAGE(torch.nn.Module):
             for _ in range(num_layers - 2):
                 self.convs.append(SAGEConv(hidden_channels, hidden_channels))
             self.convs.append(SAGEConv(hidden_channels, out_channels))
+        self.dropout = dropout
+
+    def reset_parameters(self):
+        for conv in self.convs:
+            conv.reset_parameters()
+
+    def forward(self, x, adj_t):
+        for conv in self.convs[:-1]:
+            x = conv(x, adj_t)
+            x = F.relu(x)
+            x = F.dropout(x, p=self.dropout, training=self.training)
+        x = self.convs[-1](x, adj_t)
+        return x
+
+
+class WSAGE(torch.nn.Module):
+    def __init__(self, in_channels, hidden_channels, out_channels, num_layers,
+                 dropout):
+        super(WSAGE, self).__init__()
+        self.convs = torch.nn.ModuleList()
+        if num_layers < 2:
+            self.convs.append(GraphConv(in_channels, out_channels))
+        else:
+            self.convs.append(GraphConv(in_channels, hidden_channels))
+            for _ in range(num_layers - 2):
+                self.convs.append(GraphConv(hidden_channels, hidden_channels))
+            self.convs.append(GraphConv(hidden_channels, out_channels))
         self.dropout = dropout
 
     def reset_parameters(self):

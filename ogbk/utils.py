@@ -93,6 +93,14 @@ def gcn_normalization(adj_t):
     return adj_t
 
 
+def adj_normalization(adj_t):
+    deg = adj_t.sum(dim=1).to(torch.float)
+    deg_inv_sqrt = deg.pow(-1)
+    deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
+    adj_t = deg_inv_sqrt.view(-1, 1) * adj_t
+    return adj_t
+
+
 def generate_neg_dist_table(num_nodes, adj_t, power=0.75, table_size=1e8):
     table_size = int(table_size)
     adj_t = adj_t.set_diag()

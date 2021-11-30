@@ -364,6 +364,8 @@ def create_input_layer(num_nodes, num_node_feats, hidden_channels,
 def create_gnn_layer(input_dim, hidden_channels, num_layers, dropout, encoder_name='SAGE'):
     if encoder_name.upper() == 'GCN':
         return GCN(input_dim, hidden_channels, hidden_channels, num_layers, dropout)
+    elif encoder_name.upper() == 'WSAGE':
+        return WSAGE(input_dim, hidden_channels, hidden_channels, num_layers, dropout)
     else:
         return SAGE(input_dim, hidden_channels, hidden_channels, num_layers, dropout)
 

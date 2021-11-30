@@ -8,11 +8,11 @@ def auc_loss(pos_out, neg_out, num_neg):
     return torch.square(1 - (pos_out - neg_out)).sum()
 
 
-def adaptive_auc_loss(pos_out, neg_out, num_neg, margin):
-    margin = torch.reshape(margin, (-1, 1))
+def adaptive_auc_loss(pos_out, neg_out, num_neg, weight):
+    weight = torch.reshape(weight, (-1, 1))
     pos_out = torch.reshape(pos_out, (-1, 1))
     neg_out = torch.reshape(neg_out, (-1, num_neg))
-    return torch.square(margin - (pos_out - neg_out)).sum()
+    return (weight*torch.square(1 - (pos_out - neg_out))).sum()
 
 
 def sigmoid_adaptive_auc_loss(pos_out, neg_out, num_neg, margin):
