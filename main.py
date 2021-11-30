@@ -55,6 +55,7 @@ def argument():
     parser.add_argument('--device', type=int, default=0)
     parser.add_argument('--use_node_feats', type=str2bool, default=False)
     parser.add_argument('--use_coalesce', type=str2bool, default=False)
+    parser.add_argument('--train_edge_weight', type=str2bool, default=False)
     parser.add_argument('--train_node_emb', type=str2bool, default=False)
     parser.add_argument('--node_feat_trans', type=str2bool, default=False)
     parser.add_argument('--pre_aggregate', type=str2bool, default=False)
@@ -134,7 +135,8 @@ def main():
             if args.use_coalesce:
                 full_edge_index, full_edge_weight = coalesce(full_edge_index, full_edge_weight, num_nodes, num_nodes)
 
-            split_edge['train']['edge'] = full_edge_index.t()
+            split_edge['train']['edge'] = torch.repeat_interleave(full_edge_index.t(), full_edge_weight, dim=0) \
+                if args.train_edge_weight else full_edge_index.t()
             split_edge['train']['weight'] = full_edge_weight/torch.max(full_edge_weight)
 
         if args.only_neg_train_nodes:
