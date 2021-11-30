@@ -59,7 +59,7 @@ def argument():
     parser.add_argument('--train_node_emb', type=str2bool, default=False)
     parser.add_argument('--node_feat_trans', type=str2bool, default=False)
     parser.add_argument('--pre_aggregate', type=str2bool, default=False)
-    parser.add_argument('--train_subset_nodes', type=str2bool, default=False)
+    parser.add_argument('--train_subgraph', type=str2bool, default=False)
     parser.add_argument(
         '--use_valedges_as_input',
         type=str2bool,
@@ -155,7 +155,7 @@ def main():
                 split_edge['train']['weight'] = deg_inv_sqrt[full_edge_index[0]] * full_edge_weight * deg_inv_sqrt[
                     full_edge_index[1]]
 
-        if args.train_on_subgraph:
+        if args.train_subgraph:
             row, col, edge_weight = data.adj_t.coo()
             subset = set(row.tolist()).union(set(col.tolist()))
             subset, _ = torch.sort(torch.tensor(list(subset)))
