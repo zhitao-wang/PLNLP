@@ -172,7 +172,7 @@ def main():
         data.adj_t = gcn_normalization(data.adj_t, diag=True)
 
     if args.encoder.upper() == 'WSAGE':
-        data.adj_t = gcn_normalization(data.adj_t, diag=False)
+        data.adj_t = adj_normalization(data.adj_t)
 
     model_name = 'NCModel' if args.model.lower() == 'ncmodel' else 'BaseModel'
     model = eval(model_name)(
@@ -241,7 +241,7 @@ def main():
                             print(to_print, file=f)
                     print('---')
                     print(
-                        f'Training Time Per Epoch: {spent_time / args.eval_steps: .4f} s')
+                        f'Training Time Per Epoch: {spent_time / args.log_steps: .4f} s')
                     print('---')
                     start_time = time.time()
 
