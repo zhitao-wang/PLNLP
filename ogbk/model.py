@@ -125,7 +125,7 @@ class BaseModel(object):
             loss = auc_loss(pos_out, neg_out, num_neg)
         return loss
 
-    def train(self, data, split_edge, batch_size, neg_sampler_name, num_neg, node_subset=None):
+    def train(self, data, split_edge, batch_size, neg_sampler_name, num_neg):
         self.encoder.train()
         self.predictor.train()
 
@@ -133,8 +133,7 @@ class BaseModel(object):
                                                            edge_index=data.edge_index,
                                                            num_nodes=self.num_nodes,
                                                            neg_sampler_name=neg_sampler_name,
-                                                           num_neg=num_neg,
-                                                           node_subset=node_subset)
+                                                           num_neg=num_neg)
 
         pos_train_edge, neg_train_edge = pos_train_edge.to(
             self.device), neg_train_edge.to(self.device)
