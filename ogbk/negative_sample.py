@@ -5,14 +5,11 @@ from torch_geometric.utils import negative_sampling, add_self_loops
 
 
 def global_neg_sample(edge_index, num_nodes, num_samples,
-                      num_neg, method='sparse', node_subset=None):
+                      num_neg, method='sparse'):
     new_edge_index, _ = add_self_loops(edge_index)
-    if node_subset is None:
-        neg_edge = negative_sampling(new_edge_index, num_nodes=num_nodes,
-                                     num_neg_samples=num_samples * num_neg, method=method)
-    else:
-        neg_edge = negative_sampling(new_edge_index, num_neg_samples=num_samples * num_neg, method=method)
-        neg_edge = node_subset[neg_edge]
+    neg_edge = negative_sampling(new_edge_index, num_nodes=num_nodes,
+                                 num_neg_samples=num_samples * num_neg, method=method)
+
     neg_src = neg_edge[0]
     neg_dst = neg_edge[1]
     if neg_edge.size(1) < num_samples * num_neg:
@@ -25,18 +22,14 @@ def global_neg_sample(edge_index, num_nodes, num_samples,
 
 
 def global_perm_neg_sample(edge_index, num_nodes, num_samples,
-                           num_neg, method='sparse', node_subset=None):
+                           num_neg, method='sparse'):
     new_edge_index, _ = add_self_loops(edge_index)
-    if node_subset is None:
-        neg_edge = negative_sampling(new_edge_index, num_nodes=num_nodes,
-                                     num_neg_samples=num_samples, method=method)
-    else:
-        neg_edge = negative_sampling(new_edge_index, num_neg_samples=num_samples, method=method)
-        neg_edge = node_subset[neg_edge]
+    neg_edge = negative_sampling(new_edge_index, num_nodes=num_nodes,
+                                 num_neg_samples=num_samples, method=method)
     return sample_perm_copy(neg_edge, num_samples, num_neg)
 
 
-def local_neg_sample(pos_edges, num_nodes, num_neg, random_src=False, node_subset=None):
+def local_neg_sample(pos_edges, num_nodes, num_neg, random_src=False):
     if random_src:
         neg_src = pos_edges[torch.arange(pos_edges.size(0)), torch.randint(
             0, 2, (pos_edges.size(0),), dtype=torch.long)]
@@ -44,13 +37,9 @@ def local_neg_sample(pos_edges, num_nodes, num_neg, random_src=False, node_subse
         neg_src = pos_edges[:, 0]
     neg_src = torch.reshape(neg_src, (-1, 1)).repeat(1, num_neg)
     neg_src = torch.reshape(neg_src, (-1,))
-    if node_subset is None:
-        neg_dst = torch.randint(
-            0, num_nodes, (num_neg * pos_edges.size(0),), dtype=torch.long)
-    else:
-        neg_dst_index = torch.randint(
-            0, node_subset.size(0), (num_neg * pos_edges.size(0),), dtype=torch.long)
-        neg_dst = node_subset[neg_dst_index]
+    neg_dst = torch.randint(
+        0, num_nodes, (num_neg * pos_edges.size(0),), dtype=torch.long)
+
     return torch.reshape(torch.stack(
         (neg_src, neg_dst), dim=-1), (-1, num_neg, 2))
 

@@ -4,8 +4,7 @@ import numpy as np
 from ogbk.negative_sample import *
 
 
-def get_pos_neg_edges(split, split_edge, edge_index=None,
-                      num_nodes=None, neg_sampler_name=None, num_neg=None, node_subset=None):
+def get_pos_neg_edges(split, split_edge, edge_index=None, num_nodes=None, neg_sampler_name=None, num_neg=None):
     if 'edge' in split_edge['train']:
         pos_edge = split_edge[split]['edge']
     elif 'source_node' in split_edge['train']:
@@ -18,22 +17,19 @@ def get_pos_neg_edges(split, split_edge, edge_index=None,
             neg_edge = local_neg_sample(
                 pos_edge,
                 num_nodes=num_nodes,
-                num_neg=num_neg,
-                node_subset=node_subset)
+                num_neg=num_neg)
         elif neg_sampler_name == 'global':
             neg_edge = global_neg_sample(
                 edge_index,
                 num_nodes=num_nodes,
                 num_samples=pos_edge.size(0),
-                num_neg=num_neg,
-                node_subset=node_subset)
+                num_neg=num_neg)
         else:
             neg_edge = global_perm_neg_sample(
                 edge_index,
                 num_nodes=num_nodes,
                 num_samples=pos_edge.size(0),
-                num_neg=num_neg,
-                node_subset=node_subset)
+                num_neg=num_neg)
     else:
         if 'edge' in split_edge['train']:
             neg_edge = split_edge[split]['edge_neg']

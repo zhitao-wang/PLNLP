@@ -103,11 +103,15 @@ def main():
     with open(log_file, 'a') as f:
         f.write(str(args) + '\n')
 
+    if hasattr(data, 'x'):
+        if data.x is not None:
+            data.x = data.x.to(torch.float)
+        if args.pre_aggregate:
+            data = avg_pool_neighbor_x(data)
+
     if args.data_name == 'ogbl-citation2':
         data.adj_t = data.adj_t.to_symmetric()
 
-
-    subset = None
     if args.data_name == 'ogbl-collab':
         if args.year > 0 and hasattr(data, 'edge_year'):
             selected_year_index = torch.reshape(
@@ -151,19 +155,28 @@ def main():
                 split_edge['train']['weight'] = deg_inv_sqrt[full_edge_index[0]] * full_edge_weight * deg_inv_sqrt[
                     full_edge_index[1]]
 
-        if args.train_subset_nodes:
-            row, col, _ = data.adj_t.coo()
+        if args.train_on_subgraph:
+            row, col, edge_weight = data.adj_t.coo()
             subset = set(row.tolist()).union(set(col.tolist()))
             subset, _ = torch.sort(torch.tensor(list(subset)))
-            n_idx = torch.zeros(num_nodes, dtype=torch.long)
+            # For unseen node we set it index as -1
+            n_idx = torch.zeros(num_nodes, dtype=torch.long) - 1
             n_idx[subset] = torch.arange(subset.size(0))
+            # Reset edge_index, adj_t, num_nodes
             data.edge_index = n_idx[data.edge_index]
-
-    if hasattr(data, 'x'):
-        if data.x is not None:
-            data.x = data.x.to(torch.float)
-        if args.pre_aggregate:
-            data = avg_pool_neighbor_x(data)
+            data.adj_t = SparseTensor(row=n_idx[row],
+                                      col=n_idx[col],
+                                      value=edge_weight)
+            num_nodes = subset.size(0)
+            if hasattr(data, 'x'):
+                if data.x is not None:
+                    data.x = data.x[subset]
+            # Reindex train valid test edges
+            split_edge['train']['edge'] = n_idx[split_edge['train']['edge']]
+            split_edge['valid']['edge'] = n_idx[split_edge['valid']['edge']]
+            split_edge['valid']['edge_neg'] = n_idx[split_edge['valid']['edge_neg']]
+            split_edge['test']['edge'] = n_idx[split_edge['test']['edge']]
+            split_edge['test']['edge_neg'] = n_idx[split_edge['test']['edge_neg']]
 
     data = data.to(device)
 
@@ -219,8 +232,7 @@ def main():
             loss = model.train(data, split_edge,
                                batch_size=args.batch_size,
                                neg_sampler_name=args.neg_sampler,
-                               num_neg=args.num_neg,
-                               node_subset=subset)
+                               num_neg=args.num_neg)
             if epoch % args.eval_steps == 0:
                 results = model.test(data, split_edge,
                                      batch_size=args.batch_size,

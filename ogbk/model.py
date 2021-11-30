@@ -188,6 +188,10 @@ class BaseModel(object):
 
         input_feat = self.create_input_feat(data)
         h = self.encoder(input_feat, data.adj_t)
+        # The default index of unseen nodes is -1,
+        # hidden representations of unseen nodes is the average of all seen node representations
+        mean_h = torch.mean(h, dim=0, keepdim=True)
+        h = torch.cat([h, mean_h], dim=0)
 
         pos_valid_edge, neg_valid_edge = get_pos_neg_edges('valid', split_edge)
         pos_test_edge, neg_test_edge = get_pos_neg_edges('test', split_edge)
@@ -198,6 +202,8 @@ class BaseModel(object):
         neg_valid_pred = self.batch_predict(h, neg_valid_edge, batch_size)
 
         h = self.encoder(input_feat, data.adj_t)
+        mean_h = torch.mean(h, dim=0, keepdim=True)
+        h = torch.cat([h, mean_h], dim=0)
 
         pos_test_pred = self.batch_predict(h, pos_test_edge, batch_size)
         neg_test_pred = self.batch_predict(h, neg_test_edge, batch_size)
