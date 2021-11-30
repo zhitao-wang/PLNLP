@@ -5,14 +5,14 @@ from torch_geometric.utils import negative_sampling, add_self_loops
 
 
 def global_neg_sample(edge_index, num_nodes, num_samples,
-                      num_neg, method='sparse', node_ids=None):
+                      num_neg, method='sparse', node_subset=None):
     new_edge_index, _ = add_self_loops(edge_index)
-    if node_ids is None:
+    if node_subset is None:
         neg_edge = negative_sampling(new_edge_index, num_nodes=num_nodes,
                                      num_neg_samples=num_samples * num_neg, method=method)
     else:
-        neg_edge = negative_sampling_with_ids(new_edge_index, num_nodes=num_nodes,
-                                              num_neg_samples=num_samples * num_neg, node_ids=node_ids)
+        neg_edge = negative_sampling(new_edge_index, num_neg_samples=num_samples * num_neg, method=method)
+        neg_edge = node_subset[neg_edge]
     neg_src = neg_edge[0]
     neg_dst = neg_edge[1]
     if neg_edge.size(1) < num_samples * num_neg:
@@ -25,18 +25,18 @@ def global_neg_sample(edge_index, num_nodes, num_samples,
 
 
 def global_perm_neg_sample(edge_index, num_nodes, num_samples,
-                           num_neg, method='sparse', node_ids=None):
+                           num_neg, method='sparse', node_subset=None):
     new_edge_index, _ = add_self_loops(edge_index)
-    if node_ids is None:
+    if node_subset is None:
         neg_edge = negative_sampling(new_edge_index, num_nodes=num_nodes,
-                                     num_neg_samples=num_samples , method=method)
+                                     num_neg_samples=num_samples, method=method)
     else:
-        neg_edge = negative_sampling_with_ids(new_edge_index, num_nodes=num_nodes,
-                                              num_neg_samples=num_samples, node_ids=node_ids)
+        neg_edge = negative_sampling(new_edge_index, num_neg_samples=num_samples, method=method)
+        neg_edge = node_subset[neg_edge]
     return sample_perm_copy(neg_edge, num_samples, num_neg)
 
 
-def local_neg_sample(pos_edges, num_nodes, num_neg, random_src=False, node_ids=None):
+def local_neg_sample(pos_edges, num_nodes, num_neg, random_src=False, node_subset=None):
     if random_src:
         neg_src = pos_edges[torch.arange(pos_edges.size(0)), torch.randint(
             0, 2, (pos_edges.size(0),), dtype=torch.long)]
@@ -44,13 +44,13 @@ def local_neg_sample(pos_edges, num_nodes, num_neg, random_src=False, node_ids=N
         neg_src = pos_edges[:, 0]
     neg_src = torch.reshape(neg_src, (-1, 1)).repeat(1, num_neg)
     neg_src = torch.reshape(neg_src, (-1,))
-    if node_ids is None:
+    if node_subset is None:
         neg_dst = torch.randint(
             0, num_nodes, (num_neg * pos_edges.size(0),), dtype=torch.long)
     else:
         neg_dst_index = torch.randint(
-            0, node_ids.size(0), (num_neg * pos_edges.size(0),), dtype=torch.long)
-        neg_dst = node_ids[neg_dst_index]
+            0, node_subset.size(0), (num_neg * pos_edges.size(0),), dtype=torch.long)
+        neg_dst = node_subset[neg_dst_index]
     return torch.reshape(torch.stack(
         (neg_src, neg_dst), dim=-1), (-1, num_neg, 2))
 
@@ -83,29 +83,6 @@ def local_neg_sample(pos_edges, num_nodes, num_neg, random_src=False, node_ids=N
 #     neg_dst = neg_table[neg_dst_index]
 #     return torch.reshape(torch.stack(
 #         (neg_src, neg_dst), dim=-1), (-1, num_neg, 2))
-
-
-def negative_sampling_with_ids(edge_index, num_nodes, num_neg_samples, node_ids):
-    num_samples = num_neg_samples
-    size = node_ids.size(0) * node_ids.size(0)
-    row, col = edge_index
-    idx = row * num_nodes + col
-
-    # Percentage of edges to oversample so that we are save to only sample once
-    # (in most cases).
-    alpha = abs(1 / (1 - 1.2 * (edge_index.size(1) / size)))
-
-    pair_ids = torch.randint(
-        0, node_ids.size(0), (2, int(alpha * num_samples)), dtype=torch.long)
-    sampled_pairs = node_ids[pair_ids]
-
-    perm = sampled_pairs[0] * num_nodes + sampled_pairs[1]
-    mask = torch.from_numpy(np.isin(perm, idx.to('cpu'))).to(torch.bool)
-    perm = perm[~mask][:num_samples].to(edge_index.device)
-
-    row = perm // num_nodes
-    col = perm % num_nodes
-    return torch.stack([row, col], dim=0).long()
 
 
 def sample_perm_copy(edge_index, target_num_sample, num_perm_copy):

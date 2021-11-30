@@ -59,7 +59,7 @@ def argument():
     parser.add_argument('--train_node_emb', type=str2bool, default=False)
     parser.add_argument('--node_feat_trans', type=str2bool, default=False)
     parser.add_argument('--pre_aggregate', type=str2bool, default=False)
-    parser.add_argument('--only_neg_train_nodes', type=str2bool, default=False)
+    parser.add_argument('--train_subset_nodes', type=str2bool, default=False)
     parser.add_argument(
         '--use_valedges_as_input',
         type=str2bool,
@@ -107,7 +107,7 @@ def main():
         data.adj_t = data.adj_t.to_symmetric()
 
 
-    selected_node_ids = None
+    subset = None
     if args.data_name == 'ogbl-collab':
         if args.year > 0 and hasattr(data, 'edge_year'):
             selected_year_index = torch.reshape(
@@ -151,10 +151,13 @@ def main():
                 split_edge['train']['weight'] = deg_inv_sqrt[full_edge_index[0]] * full_edge_weight * deg_inv_sqrt[
                     full_edge_index[1]]
 
-        if args.only_neg_train_nodes:
+        if args.train_subset_nodes:
             row, col, _ = data.adj_t.coo()
-            selected_node_set = set(row.tolist()).union(set(col.tolist()))
-            selected_node_ids = torch.tensor(list(selected_node_set))
+            subset = set(row.tolist()).union(set(col.tolist()))
+            subset, _ = torch.sort(torch.tensor(list(subset)))
+            n_idx = torch.zeros(num_nodes, dtype=torch.long)
+            n_idx[subset] = torch.arange(subset.size(0))
+            data.edge_index = n_idx[data.edge_index]
 
     if hasattr(data, 'x'):
         if data.x is not None:
@@ -217,7 +220,7 @@ def main():
                                batch_size=args.batch_size,
                                neg_sampler_name=args.neg_sampler,
                                num_neg=args.num_neg,
-                               node_ids=selected_node_ids)
+                               node_subset=subset)
             if epoch % args.eval_steps == 0:
                 results = model.test(data, split_edge,
                                      batch_size=args.batch_size,
