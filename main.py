@@ -169,10 +169,10 @@ def main():
 
     if args.encoder.upper() == 'GCN':
         # Pre-compute GCN normalization.
-        data.adj_t = gcn_normalization(data.adj_t)
+        data.adj_t = gcn_normalization(data.adj_t, diag=True)
 
     if args.encoder.upper() == 'WSAGE':
-        data.adj_t = adj_normalization(data.adj_t)
+        data.adj_t = gcn_normalization(data.adj_t, diag=False)
 
     model_name = 'NCModel' if args.model.lower() == 'ncmodel' else 'BaseModel'
     model = eval(model_name)(
