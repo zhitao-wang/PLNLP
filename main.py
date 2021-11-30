@@ -9,7 +9,7 @@ from torch_geometric.nn.pool.avg_pool import avg_pool_neighbor_x
 from torch_sparse import coalesce, SparseTensor
 from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
 from ogbk.logger import Logger
-from ogbk.model import BaseModel, NCModel
+from ogbk.model import BaseModel
 from ogbk.utils import gcn_normalization, adj_normalization
 
 

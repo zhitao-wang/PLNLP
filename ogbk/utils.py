@@ -19,21 +19,21 @@ def get_pos_neg_edges(split, split_edge, edge_index=None,
                 pos_edge,
                 num_nodes=num_nodes,
                 num_neg=num_neg,
-                node_ids=node_subset)
+                node_subset=node_subset)
         elif neg_sampler_name == 'global':
             neg_edge = global_neg_sample(
                 edge_index,
                 num_nodes=num_nodes,
                 num_samples=pos_edge.size(0),
                 num_neg=num_neg,
-                node_ids=node_subset)
+                node_subset=node_subset)
         else:
             neg_edge = global_perm_neg_sample(
                 edge_index,
                 num_nodes=num_nodes,
                 num_samples=pos_edge.size(0),
                 num_neg=num_neg,
-                node_ids=node_subset)
+                node_subset=node_subset)
     else:
         if 'edge' in split_edge['train']:
             neg_edge = split_edge[split]['edge_neg']
