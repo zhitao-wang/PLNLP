@@ -119,6 +119,7 @@ def main():
             new_edges = to_undirected(train_edge_index, split_edge['train']['weight'], reduce='add')
             new_edge_index, new_edge_weight = new_edges[0], new_edges[1]
             data.adj_t = SparseTensor(row=new_edge_index[0], col=new_edge_index[1], value=new_edge_weight)
+            data.edge_index = new_edge_index
 
         # Use training + validation edges for inference on test set.
         if args.use_valedges_as_input:
@@ -128,6 +129,7 @@ def main():
             new_edges = to_undirected(full_edge_index, full_edge_weight, reduce='add')
             new_edge_index, new_edge_weight = new_edges[0], new_edges[1]
             data.adj_t = SparseTensor(row=new_edge_index[0], col=new_edge_index[1], value=new_edge_weight)
+            data.edge_index = new_edge_index
 
             if args.use_coalesce:
                 full_edge_index, full_edge_weight = coalesce(full_edge_index, full_edge_weight, num_nodes, num_nodes)
