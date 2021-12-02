@@ -18,7 +18,7 @@ class BaseModel(object):
             number of gnn layers
         mlp_num_layers : int
             number of gnn layers
-        hidden_channels : int
+        *_hidden_channels : int
             dimension of hidden
         num_nodes : int
             number of graph nodes
@@ -28,6 +28,8 @@ class BaseModel(object):
             gnn encoder name
         predictor_name: str
             link predictor name
+        activation_name: str
+            activation function name
         loss_func: str
             loss function name
         optimizer_name: str
@@ -38,11 +40,15 @@ class BaseModel(object):
             whether to use raw node features as input
         train_node_emb:
             whether to train node embeddings based on node id
+        pretrain_emb:
+            whether to load pretrained node embeddings
+        node_feat_trans:
+            whether to do linear transformation for node features
     """
 
     def __init__(self, lr, dropout, gnn_num_layers, mlp_num_layers, emb_hidden_channels, gnn_hidden_channels,
-                 mlp_hidden_channels, num_nodes, num_node_feats, gnn_encoder_name, predictor_name, loss_func,
-                 optimizer_name, device, use_node_feats, train_node_emb, pretrain_emb, node_feat_trans):
+                 mlp_hidden_channels, num_nodes, num_node_feats, gnn_encoder_name, predictor_name, acivation_name,
+                 loss_func, optimizer_name, device, use_node_feats, train_node_emb, pretrain_emb, node_feat_trans):
         self.loss_func_name = loss_func
         self.num_nodes = num_nodes
         self.num_node_feats = num_node_feats
@@ -69,6 +75,7 @@ class BaseModel(object):
                                         hidden_channels=gnn_hidden_channels,
                                         num_layers=gnn_num_layers,
                                         dropout=dropout,
+                                        activation=acivation_name,
                                         encoder_name=gnn_encoder_name)
         self.encoder = self.encoder.to(device)
 
@@ -76,6 +83,7 @@ class BaseModel(object):
         self.predictor = create_predictor_layer(hidden_channels=mlp_hidden_channels,
                                                 num_layers=mlp_num_layers,
                                                 dropout=dropout,
+                                                activation=acivation_name,
                                                 predictor_name=predictor_name)
         self.predictor = self.predictor.to(device)
 
@@ -366,26 +374,26 @@ def create_input_layer(num_nodes, num_node_feats, hidden_channels,
     return input_dim, emb, feat_trans_lin
 
 
-def create_gnn_layer(input_dim, hidden_channels, num_layers, dropout, encoder_name='SAGE'):
+def create_gnn_layer(input_dim, hidden_channels, num_layers, dropout, activation='relu', encoder_name='SAGE'):
     if encoder_name.upper() == 'GCN':
-        return GCN(input_dim, hidden_channels, hidden_channels, num_layers, dropout)
+        return GCN(input_dim, hidden_channels, hidden_channels, num_layers, dropout, activation)
     elif encoder_name.upper() == 'WSAGE':
-        return WSAGE(input_dim, hidden_channels, hidden_channels, num_layers, dropout)
+        return WSAGE(input_dim, hidden_channels, hidden_channels, num_layers, dropout, activation)
     else:
-        return SAGE(input_dim, hidden_channels, hidden_channels, num_layers, dropout)
+        return SAGE(input_dim, hidden_channels, hidden_channels, num_layers, dropout, activation)
 
 
-def create_predictor_layer(hidden_channels=256, num_layers=2, dropout=0, predictor_name='MLP'):
+def create_predictor_layer(hidden_channels=256, num_layers=2, dropout=0, activation='relu', predictor_name='MLP'):
     predictor_name = predictor_name.upper()
     if predictor_name == 'DOT':
         return DotPredictor()
     elif predictor_name == 'BIL':
         return BilinearPredictor(hidden_channels)
     elif predictor_name == 'MLP':
-        return MLPPredictor(hidden_channels, hidden_channels, 1, num_layers, dropout)
+        return MLPPredictor(hidden_channels, hidden_channels, 1, num_layers, dropout, activation)
     elif predictor_name == 'MLPDOT':
-        return MLPDotPredictor(hidden_channels, hidden_channels, 1, num_layers, dropout)
+        return MLPDotPredictor(hidden_channels, 1, num_layers, dropout, activation)
     elif predictor_name == 'MLPBIL':
-        return MLPBilPredictor(hidden_channels, hidden_channels, 1, num_layers, dropout)
+        return MLPBilPredictor(hidden_channels, 1, num_layers, dropout, activation)
     elif predictor_name == 'MLPCAT':
-        return MLPCatPredictor(hidden_channels, hidden_channels, 1, num_layers, dropout)
+        return MLPCatPredictor(hidden_channels, hidden_channels, 1, num_layers, dropout, activation)

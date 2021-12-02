@@ -28,6 +28,7 @@ def argument():
     parser = argparse.ArgumentParser()
     parser.add_argument('--encoder', type=str, default='GraphSage')
     parser.add_argument('--predictor', type=str, default='DOT')
+    parser.add_argument('--activation', type=str, default='relu')
     parser.add_argument('--optimizer', type=str, default='Adam')
     parser.add_argument('--loss_func', type=str, default='AUC')
     parser.add_argument('--neg_sampler', type=str, default='global_perm')
@@ -39,7 +40,6 @@ def argument():
     parser.add_argument('--pretrain_emb', type=str, default='')
     parser.add_argument('--gnn_num_layers', type=int, default=2)
     parser.add_argument('--mlp_num_layers', type=int, default=1)
-    parser.add_argument('--num_hops', type=int, default=1)
     parser.add_argument('--emb_hidden_channels', type=int, default=256)
     parser.add_argument('--gnn_hidden_channels', type=int, default=256)
     parser.add_argument('--mlp_hidden_channels', type=int, default=256)
@@ -180,9 +180,6 @@ def main():
 
     data = data.to(device)
 
-    # if args.num_hops > 1:
-    #     data.adj_t = data.adj_t.matmul(data.adj_t)
-
     if args.encoder.upper() == 'GCN':
         # Pre-compute GCN normalization.
         data.adj_t = gcn_normalization(data.adj_t, diag=True)
@@ -203,6 +200,7 @@ def main():
         num_node_feats=num_node_feats,
         gnn_encoder_name=args.encoder,
         predictor_name=args.predictor,
+        activation_name=args.activation,
         loss_func=args.loss_func,
         optimizer_name=args.optimizer,
         device=device,
