@@ -130,7 +130,6 @@ class MLPPredictor(torch.nn.Module):
 
     def forward(self, x_i, x_j):
         x = x_i * x_j
-        x = F.dropout(x, p=self.dropout, training=self.training)
         for lin in self.lins[:-1]:
             x = lin(x)
             x = self.activation(x)
@@ -159,8 +158,6 @@ class MLPCatPredictor(torch.nn.Module):
     def forward(self, x_i, x_j):
         x1 = torch.cat([x_i, x_j], dim=-1)
         x2 = torch.cat([x_j, x_i], dim=-1)
-        x1 = F.dropout(x1, p=self.dropout, training=self.training)
-        x2 = F.dropout(x2, p=self.dropout, training=self.training)
         for lin in self.lins[:-1]:
             x1, x2 = lin(x1), lin(x2)
             x1, x2 = self.activation(x1), self.activation(x2)
@@ -191,8 +188,6 @@ class MLPDotPredictor(torch.nn.Module):
             lin.reset_parameters()
 
     def forward(self, x_i, x_j):
-        x_i, x_j = F.dropout(x_i, p=self.dropout, training=self.training), \
-                   F.dropout(x_j, p=self.dropout, training=self.training)
         for lin in self.lins:
             x_i, x_j = lin(x_i), lin(x_j)
             x_i, x_j = self.activation(x_i), self.activation(x_j)
@@ -224,8 +219,6 @@ class MLPBilPredictor(torch.nn.Module):
         self.bilin.reset_parameters()
 
     def forward(self, x_i, x_j):
-        x_i, x_j = F.dropout(x_i, p=self.dropout, training=self.training), \
-                   F.dropout(x_j, p=self.dropout, training=self.training)
         for lin in self.lins:
             x_i, x_j = lin(x_i), lin(x_j)
             x_i, x_j = self.activation(x_i), self.activation(x_j)

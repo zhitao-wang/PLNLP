@@ -185,6 +185,11 @@ def main():
     if args.encoder.upper() == 'WSAGE':
         data.adj_t = adj_normalization(data.adj_t)
 
+    if args.encoder.upper() == 'TRANSFORMER':
+        row, col, edge_weight = data.adj_t.coo()
+        data.adj_t = SparseTensor(row=row,
+                                  col=col)
+
     model = BaseModel(
         lr=args.lr,
         dropout=args.dropout,
