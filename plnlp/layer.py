@@ -30,7 +30,6 @@ class GCN(torch.nn.Module):
             x = self.activation(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.convs[-1](x, adj_t)
-        x = self.activation(x)
         return x
 
 
@@ -56,7 +55,6 @@ class SAGE(torch.nn.Module):
             x = self.activation(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.convs[-1](x, adj_t)
-        x = self.activation(x)
         return x
 
 
@@ -82,7 +80,6 @@ class WSAGE(torch.nn.Module):
             x = self.activation(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.convs[-1](x, adj_t)
-        x = self.activation(x)
         return x
 
 
@@ -108,7 +105,6 @@ class Transformer(torch.nn.Module):
             x = self.activation(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.convs[-1](x, adj_t)
-        x = self.activation(x)
         return x
 
 
