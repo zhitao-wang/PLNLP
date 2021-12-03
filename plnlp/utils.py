@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import torch
 import numpy as np
-from ogbk.negative_sample import *
+from plnlp.negative_sample import global_neg_sample, global_perm_neg_sample, local_neg_sample
 
 
 def get_pos_neg_edges(split, split_edge, edge_index=None, num_nodes=None, neg_sampler_name=None, num_neg=None):

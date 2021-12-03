@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import torch
 import torch.nn.functional as F
-from torch_geometric.nn import SAGEConv, GCNConv, GraphConv
+from torch_geometric.nn import SAGEConv, GCNConv, GraphConv, TransformerConv
 
 
 class GCN(torch.nn.Module):
@@ -10,28 +10,13 @@ class GCN(torch.nn.Module):
         super(GCN, self).__init__()
         self.convs = torch.nn.ModuleList()
         self.activation = get_activation(activation_name)
-        if num_layers < 2:
+        for i in range(num_layers):
+            first_channels = in_channels if i == 0 else hidden_channels
+            second_channels = out_channels if i == num_layers - 1 else hidden_channels
             self.convs.append(
                 GCNConv(
-                    in_channels,
-                    out_channels,
-                    normalize=False))
-        else:
-            self.convs.append(
-                GCNConv(
-                    in_channels,
-                    hidden_channels,
-                    normalize=False))
-            for _ in range(num_layers - 2):
-                self.convs.append(
-                    GCNConv(
-                        hidden_channels,
-                        hidden_channels,
-                        normalize=False))
-            self.convs.append(
-                GCNConv(
-                    hidden_channels,
-                    out_channels,
+                    first_channels,
+                    second_channels,
                     normalize=False))
         self.dropout = dropout
 
@@ -40,12 +25,12 @@ class GCN(torch.nn.Module):
             conv.reset_parameters()
 
     def forward(self, x, adj_t):
-
         for conv in self.convs[:-1]:
             x = conv(x, adj_t)
             x = self.activation(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.convs[-1](x, adj_t)
+        x = self.activation(x)
         return x
 
 
@@ -55,13 +40,10 @@ class SAGE(torch.nn.Module):
         super(SAGE, self).__init__()
         self.convs = torch.nn.ModuleList()
         self.activation = get_activation(activation_name)
-        if num_layers < 2:
-            self.convs.append(SAGEConv(in_channels, out_channels))
-        else:
-            self.convs.append(SAGEConv(in_channels, hidden_channels))
-            for _ in range(num_layers - 2):
-                self.convs.append(SAGEConv(hidden_channels, hidden_channels))
-            self.convs.append(SAGEConv(hidden_channels, out_channels))
+        for i in range(num_layers):
+            first_channels = in_channels if i == 0 else hidden_channels
+            second_channels = out_channels if i == num_layers - 1 else hidden_channels
+            self.convs.append(SAGEConv(first_channels, second_channels))
         self.dropout = dropout
 
     def reset_parameters(self):
@@ -74,6 +56,7 @@ class SAGE(torch.nn.Module):
             x = self.activation(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.convs[-1](x, adj_t)
+        x = self.activation(x)
         return x
 
 
@@ -83,13 +66,10 @@ class WSAGE(torch.nn.Module):
         super(WSAGE, self).__init__()
         self.convs = torch.nn.ModuleList()
         self.activation = get_activation(activation_name)
-        if num_layers < 2:
-            self.convs.append(GraphConv(in_channels, out_channels))
-        else:
-            self.convs.append(GraphConv(in_channels, hidden_channels))
-            for _ in range(num_layers - 2):
-                self.convs.append(GraphConv(hidden_channels, hidden_channels))
-            self.convs.append(GraphConv(hidden_channels, out_channels))
+        for i in range(num_layers):
+            first_channels = in_channels if i == 0 else hidden_channels
+            second_channels = out_channels if i == num_layers - 1 else hidden_channels
+            self.convs.append(GraphConv(first_channels, second_channels))
         self.dropout = dropout
 
     def reset_parameters(self):
@@ -102,6 +82,33 @@ class WSAGE(torch.nn.Module):
             x = self.activation(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.convs[-1](x, adj_t)
+        x = self.activation(x)
+        return x
+
+
+class Transformer(torch.nn.Module):
+    def __init__(self, in_channels, hidden_channels, out_channels, num_layers,
+                 dropout, activation_name):
+        super(Transformer, self).__init__()
+        self.convs = torch.nn.ModuleList()
+        self.activation = get_activation(activation_name)
+        for i in range(num_layers):
+            first_channels = in_channels if i == 0 else hidden_channels
+            second_channels = out_channels if i == num_layers - 1 else hidden_channels
+            self.convs.append(TransformerConv(first_channels, second_channels))
+        self.dropout = dropout
+
+    def reset_parameters(self):
+        for conv in self.convs:
+            conv.reset_parameters()
+
+    def forward(self, x, adj_t):
+        for conv in self.convs[:-1]:
+            x = conv(x, adj_t)
+            x = self.activation(x)
+            x = F.dropout(x, p=self.dropout, training=self.training)
+        x = self.convs[-1](x, adj_t)
+        x = self.activation(x)
         return x
 
 
@@ -111,16 +118,10 @@ class MLPPredictor(torch.nn.Module):
         super(MLPPredictor, self).__init__()
         self.lins = torch.nn.ModuleList()
         self.activation = get_activation(activation_name)
-        if num_layers < 2:
-            self.lins.append(torch.nn.Linear(in_channels, out_channels))
-        else:
-            self.lins.append(torch.nn.Linear(in_channels, hidden_channels))
-            for _ in range(num_layers - 2):
-                self.lins.append(
-                    torch.nn.Linear(
-                        hidden_channels,
-                        hidden_channels))
-            self.lins.append(torch.nn.Linear(hidden_channels, out_channels))
+        for i in range(num_layers):
+            first_channels = in_channels if i == 0 else hidden_channels
+            second_channels = out_channels if i == num_layers - 1 else hidden_channels
+            self.lins.append(torch.nn.Linear(first_channels, second_channels))
         self.dropout = dropout
 
     def reset_parameters(self):
@@ -129,6 +130,7 @@ class MLPPredictor(torch.nn.Module):
 
     def forward(self, x_i, x_j):
         x = x_i * x_j
+        x = F.dropout(x, p=self.dropout, training=self.training)
         for lin in self.lins[:-1]:
             x = lin(x)
             x = self.activation(x)
@@ -144,16 +146,10 @@ class MLPCatPredictor(torch.nn.Module):
         self.lins = torch.nn.ModuleList()
         self.activation = get_activation(activation_name)
         in_channels = 2 * in_channels
-        if num_layers < 2:
-            self.lins.append(torch.nn.Linear(in_channels, out_channels))
-        else:
-            self.lins.append(torch.nn.Linear(in_channels, hidden_channels))
-            for _ in range(num_layers - 2):
-                self.lins.append(
-                    torch.nn.Linear(
-                        hidden_channels,
-                        hidden_channels))
-            self.lins.append(torch.nn.Linear(hidden_channels, out_channels))
+        for i in range(num_layers):
+            first_channels = in_channels if i == 0 else hidden_channels
+            second_channels = out_channels if i == num_layers - 1 else hidden_channels
+            self.lins.append(torch.nn.Linear(first_channels, second_channels))
         self.dropout = dropout
 
     def reset_parameters(self):
@@ -163,9 +159,11 @@ class MLPCatPredictor(torch.nn.Module):
     def forward(self, x_i, x_j):
         x1 = torch.cat([x_i, x_j], dim=-1)
         x2 = torch.cat([x_j, x_i], dim=-1)
+        x1 = F.dropout(x1, p=self.dropout, training=self.training)
+        x2 = F.dropout(x2, p=self.dropout, training=self.training)
         for lin in self.lins[:-1]:
             x1, x2 = lin(x1), lin(x2)
-            x1, x2 = self.activation(x1), self.activation(x2),
+            x1, x2 = self.activation(x1), self.activation(x2)
             x1 = F.dropout(x1, p=self.dropout, training=self.training)
             x2 = F.dropout(x2, p=self.dropout, training=self.training)
         x1 = self.lins[-1](x1)
@@ -193,6 +191,8 @@ class MLPDotPredictor(torch.nn.Module):
             lin.reset_parameters()
 
     def forward(self, x_i, x_j):
+        x_i, x_j = F.dropout(x_i, p=self.dropout, training=self.training), \
+                   F.dropout(x_j, p=self.dropout, training=self.training)
         for lin in self.lins:
             x_i, x_j = lin(x_i), lin(x_j)
             x_i, x_j = self.activation(x_i), self.activation(x_j)
@@ -224,6 +224,8 @@ class MLPBilPredictor(torch.nn.Module):
         self.bilin.reset_parameters()
 
     def forward(self, x_i, x_j):
+        x_i, x_j = F.dropout(x_i, p=self.dropout, training=self.training), \
+                   F.dropout(x_j, p=self.dropout, training=self.training)
         for lin in self.lins:
             x_i, x_j = lin(x_i), lin(x_j)
             x_i, x_j = self.activation(x_i), self.activation(x_j)

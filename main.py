@@ -8,20 +8,9 @@ from torch_geometric.utils import to_undirected
 from torch_geometric.nn.pool.avg_pool import avg_pool_neighbor_x
 from torch_sparse import coalesce, SparseTensor
 from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
-from ogbk.logger import Logger
-from ogbk.model import BaseModel
-from ogbk.utils import gcn_normalization, adj_normalization
-
-
-def str2bool(v):
-    if isinstance(v, bool):
-        return v
-    if v.lower() in ('yes', 'true', 't', 'y', '1'):
-        return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
-        return False
-    else:
-        raise argparse.ArgumentTypeError('Boolean value expected.')
+from plnlp.logger import Logger
+from plnlp.model import BaseModel
+from plnlp.utils import gcn_normalization, adj_normalization
 
 
 def argument():
@@ -60,12 +49,20 @@ def argument():
     parser.add_argument('--node_feat_trans', type=str2bool, default=False)
     parser.add_argument('--pre_aggregate', type=str2bool, default=False)
     parser.add_argument('--train_subgraph', type=str2bool, default=False)
-    parser.add_argument(
-        '--use_valedges_as_input',
-        type=str2bool,
-        default=False)
+    parser.add_argument('--use_valedges_as_input', type=str2bool, default=False)
     args = parser.parse_args()
     return args
+
+
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
 
 
 def main():
@@ -89,15 +86,16 @@ def main():
     else:
         num_node_feats = 0
 
-    print(num_node_feats)
-
     if hasattr(data, 'num_nodes'):
         num_nodes = data.num_nodes
     else:
         num_nodes = data.adj_t.size(0)
 
     split_edge = dataset.get_edge_split()
+
     print(args)
+
+    # create log file and save args
     log_file_name = 'log_' + str(int(time.time())) + '.txt'
     log_file = os.path.join(args.res_dir, log_file_name)
     with open(log_file, 'a') as f:
@@ -187,8 +185,7 @@ def main():
     if args.encoder.upper() == 'WSAGE':
         data.adj_t = adj_normalization(data.adj_t)
 
-    model_name = 'NCModel' if args.model.lower() == 'ncmodel' else 'BaseModel'
-    model = eval(model_name)(
+    model = BaseModel(
         lr=args.lr,
         dropout=args.dropout,
         gnn_num_layers=args.gnn_num_layers,
@@ -208,7 +205,7 @@ def main():
         train_node_emb=args.train_node_emb,
         pretrain_emb=args.pretrain_emb,
         node_feat_trans=args.node_feat_trans
-        )
+    )
 
     evaluator = Evaluator(name=args.data_name)
 
