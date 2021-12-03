@@ -42,6 +42,7 @@ def argument():
     parser.add_argument('--runs', type=int, default=10)
     parser.add_argument('--year', type=int, default=-1)
     parser.add_argument('--device', type=int, default=0)
+    parser.add_argument('--gnn_out_act', type=str2bool, default=False)
     parser.add_argument('--use_node_feats', type=str2bool, default=False)
     parser.add_argument('--use_coalesce', type=str2bool, default=False)
     parser.add_argument('--edge_weight_repeat', type=str2bool, default=False)
@@ -187,8 +188,7 @@ def main():
 
     if args.encoder.upper() == 'TRANSFORMER':
         row, col, edge_weight = data.adj_t.coo()
-        data.adj_t = SparseTensor(row=row,
-                                  col=col)
+        data.adj_t = SparseTensor(row=row, col=col)
 
     model = BaseModel(
         lr=args.lr,
@@ -203,6 +203,7 @@ def main():
         gnn_encoder_name=args.encoder,
         predictor_name=args.predictor,
         activation_name=args.activation,
+        gnn_out_act=args.gnn_out_act,
         loss_func=args.loss_func,
         optimizer_name=args.optimizer,
         device=device,

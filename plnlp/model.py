@@ -47,7 +47,8 @@ class BaseModel(object):
 
     def __init__(self, lr, dropout, gnn_num_layers, mlp_num_layers, emb_hidden_channels, gnn_hidden_channels,
                  mlp_hidden_channels, num_nodes, num_node_feats, gnn_encoder_name, predictor_name, activation_name,
-                 loss_func, optimizer_name, device, use_node_feats, train_node_emb, pretrain_emb, node_feat_trans):
+                 gnn_out_act, loss_func, optimizer_name, device, use_node_feats, train_node_emb, pretrain_emb,
+                 node_feat_trans):
         self.loss_func_name = loss_func
         self.num_nodes = num_nodes
         self.num_node_feats = num_node_feats
@@ -57,25 +58,26 @@ class BaseModel(object):
         self.device = device
 
         # Input Layer
-        self.input_dim, self.emb, self.feat_trans_lin = create_input_layer(num_nodes=num_nodes,
-                                                                           num_node_feats=num_node_feats,
-                                                                           hidden_channels=emb_hidden_channels,
-                                                                           use_node_feats=use_node_feats,
-                                                                           train_node_emb=train_node_emb,
-                                                                           pretrain_emb=pretrain_emb,
-                                                                           node_feat_trans=node_feat_trans)
+        self.input_channels, self.emb, self.feat_trans_lin = create_input_layer(num_nodes=num_nodes,
+                                                                                num_node_feats=num_node_feats,
+                                                                                hidden_channels=emb_hidden_channels,
+                                                                                use_node_feats=use_node_feats,
+                                                                                train_node_emb=train_node_emb,
+                                                                                pretrain_emb=pretrain_emb,
+                                                                                node_feat_trans=node_feat_trans)
         if self.emb is not None:
             self.emb = self.emb.to(device)
         if self.feat_trans_lin is not None:
             self.feat_trans_lin = self.feat_trans_lin.to(device)
 
         # GNN Layer
-        self.encoder = create_gnn_layer(input_dim=self.input_dim,
+        self.encoder = create_gnn_layer(input_dim=self.input_channels,
                                         hidden_channels=gnn_hidden_channels,
                                         num_layers=gnn_num_layers,
                                         dropout=dropout,
+                                        encoder_name=gnn_encoder_name,
                                         activation=activation_name,
-                                        encoder_name=gnn_encoder_name)
+                                        out_act=gnn_out_act)
         self.encoder = self.encoder.to(device)
 
         # Predict Layer
@@ -261,15 +263,15 @@ def create_input_layer(num_nodes, num_node_feats, hidden_channels,
     return input_dim, emb, feat_trans_lin
 
 
-def create_gnn_layer(input_dim, hidden_channels, num_layers, dropout, activation='relu', encoder_name='SAGE'):
+def create_gnn_layer(input_channels, hidden_channels, num_layers, dropout, encoder_name='SAGE', activation='relu', out_act=False):
     if encoder_name.upper() == 'GCN':
-        return GCN(input_dim, hidden_channels, hidden_channels, num_layers, dropout, activation)
+        return GCN(input_channels, hidden_channels, hidden_channels, num_layers, dropout, activation, out_act)
     elif encoder_name.upper() == 'WSAGE':
-        return WSAGE(input_dim, hidden_channels, hidden_channels, num_layers, dropout, activation)
+        return WSAGE(input_channels, hidden_channels, hidden_channels, num_layers, dropout, activation, out_act)
     elif encoder_name.upper() == 'TRANSFORMER':
-        return Transformer(input_dim, hidden_channels, hidden_channels, num_layers, dropout, activation)
+        return Transformer(input_channels, hidden_channels, hidden_channels, num_layers, dropout, activation, out_act)
     else:
-        return SAGE(input_dim, hidden_channels, hidden_channels, num_layers, dropout, activation)
+        return SAGE(input_channels, hidden_channels, hidden_channels, num_layers, dropout, activation, out_act)
 
 
 def create_predictor_layer(hidden_channels=256, num_layers=2, dropout=0, activation='relu', predictor_name='MLP'):
