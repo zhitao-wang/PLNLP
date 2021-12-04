@@ -169,7 +169,7 @@ class BaseModel(object):
             loss = self.calculate_loss(pos_out, neg_out, num_neg, margin=weight_margin)
             loss.backward()
 
-            if self.clip_norm is not None:
+            if self.clip_norm != float('inf'):
                 if self.emb is not None:
                     torch.nn.utils.clip_grad_norm_([self.emb.weight], self.clip_norm)
                 if self.feat_trans_lin is not None:
