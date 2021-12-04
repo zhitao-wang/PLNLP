@@ -52,6 +52,7 @@ def argument():
     parser.add_argument('--pre_aggregate', type=str2bool, default=False)
     parser.add_argument('--train_subgraph', type=str2bool, default=False)
     parser.add_argument('--use_valedges_as_input', type=str2bool, default=False)
+    parser.add_argument('--eval_last_best', type=str2bool, default=False)
     args = parser.parse_args()
     return args
 
@@ -265,17 +266,17 @@ def main():
 
         for key in loggers.keys():
             print(key)
-            loggers[key].print_statistics(run)
+            loggers[key].print_statistics(run, last_best=args.eval_last_best)
             with open(log_file, 'a') as f:
                 print(key, file=f)
-                loggers[key].print_statistics(run, f=f)
+                loggers[key].print_statistics(run, last_best=args.eval_last_best, f=f)
 
     for key in loggers.keys():
         print(key)
-        loggers[key].print_statistics()
+        loggers[key].print_statistics(last_best=args.eval_last_best)
         with open(log_file, 'a') as f:
             print(key, file=f)
-            loggers[key].print_statistics(f=f)
+            loggers[key].print_statistics(last_best=args.eval_last_best, f=f)
 
 
 if __name__ == "__main__":
