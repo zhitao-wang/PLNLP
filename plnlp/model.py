@@ -48,13 +48,14 @@ class BaseModel(object):
     def __init__(self, lr, dropout, gnn_num_layers, mlp_num_layers, emb_hidden_channels, gnn_hidden_channels,
                  mlp_hidden_channels, num_nodes, num_node_feats, gnn_encoder_name, predictor_name, activation_name,
                  gnn_out_act, loss_func, optimizer_name, device, use_node_feats, train_node_emb, pretrain_emb,
-                 node_feat_trans):
+                 node_feat_trans, grad_clip_norm):
         self.loss_func_name = loss_func
         self.num_nodes = num_nodes
         self.num_node_feats = num_node_feats
         self.use_node_feats = use_node_feats
         self.train_node_emb = train_node_emb
         self.node_feat_trans = node_feat_trans
+        self.clip_norm = grad_clip_norm
         self.device = device
 
         # Input Layer
@@ -71,7 +72,7 @@ class BaseModel(object):
             self.feat_trans_lin = self.feat_trans_lin.to(device)
 
         # GNN Layer
-        self.encoder = create_gnn_layer(input_dim=self.input_channels,
+        self.encoder = create_gnn_layer(input_channels=self.input_channels,
                                         hidden_channels=gnn_hidden_channels,
                                         num_layers=gnn_num_layers,
                                         dropout=dropout,
@@ -168,8 +169,12 @@ class BaseModel(object):
             loss = self.calculate_loss(pos_out, neg_out, num_neg, margin=weight_margin)
             loss.backward()
 
-            # torch.nn.utils.clip_grad_norm_(self.encoder.parameters(), 1.0)
-            # torch.nn.utils.clip_grad_norm_(self.predictor.parameters(), 1.0)
+            if self.emb is not None:
+                torch.nn.utils.clip_grad_norm_([self.emb.weight], self.clip_norm)
+            if self.feat_trans_lin is not None:
+                torch.nn.utils.clip_grad_norm_(self.feat_trans_lin.parameters(), self.clip_norm)
+            torch.nn.utils.clip_grad_norm_(self.encoder.parameters(), self.clip_norm)
+            torch.nn.utils.clip_grad_norm_(self.predictor.parameters(), self.clip_norm)
             self.optimizer.step()
 
             num_examples = pos_out.size(0)
@@ -232,8 +237,8 @@ class BaseModel(object):
         return results
 
 
-def create_input_layer(num_nodes, num_node_feats, hidden_channels,
-                       use_node_feats=True, train_node_emb=False, pretrain_emb=None, node_feat_trans=False):
+def create_input_layer(num_nodes, num_node_feats, hidden_channels, use_node_feats=True,
+                       train_node_emb=False, pretrain_emb=None, node_feat_trans=False):
     emb = None
     feat_trans_lin = None
     if use_node_feats:
@@ -263,7 +268,8 @@ def create_input_layer(num_nodes, num_node_feats, hidden_channels,
     return input_dim, emb, feat_trans_lin
 
 
-def create_gnn_layer(input_channels, hidden_channels, num_layers, dropout, encoder_name='SAGE', activation='relu', out_act=False):
+def create_gnn_layer(input_channels, hidden_channels, num_layers, dropout,
+                     encoder_name='SAGE', activation='relu', out_act=False):
     if encoder_name.upper() == 'GCN':
         return GCN(input_channels, hidden_channels, hidden_channels, num_layers, dropout, activation, out_act)
     elif encoder_name.upper() == 'WSAGE':

@@ -4,21 +4,12 @@ import torch.nn.functional as F
 from torch_geometric.nn import SAGEConv, GCNConv, GraphConv, TransformerConv
 
 
-class GCN(torch.nn.Module):
-    def __init__(self, in_channels, hidden_channels, out_channels, num_layers,
-                 dropout, activation_name, out_act=False):
-        super(GCN, self).__init__()
+class BaseGNN(torch.nn.Module):
+    def __init__(self, dropout, activation_name, out_act=False):
+        super(BaseGNN, self).__init__()
         self.convs = torch.nn.ModuleList()
-        self.activation = get_activation(activation_name)
-        for i in range(num_layers):
-            first_channels = in_channels if i == 0 else hidden_channels
-            second_channels = out_channels if i == num_layers - 1 else hidden_channels
-            self.convs.append(
-                GCNConv(
-                    first_channels,
-                    second_channels,
-                    normalize=False))
         self.dropout = dropout
+        self.activation = get_activation(activation_name)
         self.out_act = out_act
 
     def reset_parameters(self):
@@ -36,88 +27,46 @@ class GCN(torch.nn.Module):
         return x
 
 
-class SAGE(torch.nn.Module):
+class SAGE(BaseGNN):
     def __init__(self, in_channels, hidden_channels, out_channels, num_layers,
                  dropout, activation_name, out_act=False):
-        super(SAGE, self).__init__()
-        self.convs = torch.nn.ModuleList()
-        self.activation = get_activation(activation_name)
+        super(SAGE, self).__init__(dropout, activation_name, out_act)
         for i in range(num_layers):
             first_channels = in_channels if i == 0 else hidden_channels
             second_channels = out_channels if i == num_layers - 1 else hidden_channels
             self.convs.append(SAGEConv(first_channels, second_channels))
-        self.dropout = dropout
-        self.out_act = out_act
-
-    def reset_parameters(self):
-        for conv in self.convs:
-            conv.reset_parameters()
-
-    def forward(self, x, adj_t):
-        for conv in self.convs[:-1]:
-            x = conv(x, adj_t)
-            x = self.activation(x)
-            x = F.dropout(x, p=self.dropout, training=self.training)
-        x = self.convs[-1](x, adj_t)
-        if self.out_act:
-            x = self.activation(x)
-        return x
 
 
-class WSAGE(torch.nn.Module):
+class GCN(BaseGNN):
     def __init__(self, in_channels, hidden_channels, out_channels, num_layers,
                  dropout, activation_name, out_act=False):
-        super(WSAGE, self).__init__()
-        self.convs = torch.nn.ModuleList()
-        self.activation = get_activation(activation_name)
+        super(GCN, self).__init__(dropout, activation_name, out_act)
+        for i in range(num_layers):
+            first_channels = in_channels if i == 0 else hidden_channels
+            second_channels = out_channels if i == num_layers - 1 else hidden_channels
+            self.convs.append(GCNConv(first_channels, second_channels, normalize=False))
+
+
+class WSAGE(BaseGNN):
+    def __init__(self, in_channels, hidden_channels, out_channels, num_layers,
+                 dropout, activation_name, out_act=False):
+        super(WSAGE, self).__init__(dropout, activation_name, out_act)
         for i in range(num_layers):
             first_channels = in_channels if i == 0 else hidden_channels
             second_channels = out_channels if i == num_layers - 1 else hidden_channels
             self.convs.append(GraphConv(first_channels, second_channels))
-        self.dropout = dropout
-        self.out_act = out_act
-
-    def reset_parameters(self):
-        for conv in self.convs:
-            conv.reset_parameters()
-
-    def forward(self, x, adj_t):
-        for conv in self.convs[:-1]:
-            x = conv(x, adj_t)
-            x = self.activation(x)
-            x = F.dropout(x, p=self.dropout, training=self.training)
-        x = self.convs[-1](x, adj_t)
-        if self.out_act:
-            x = self.activation(x)
-        return x
 
 
-class Transformer(torch.nn.Module):
+class Transformer(BaseGNN):
     def __init__(self, in_channels, hidden_channels, out_channels, num_layers,
                  dropout, activation_name, out_act=False):
-        super(Transformer, self).__init__()
+        super(Transformer, self).__init__(dropout, activation_name, out_act)
         self.convs = torch.nn.ModuleList()
         self.activation = get_activation(activation_name)
         for i in range(num_layers):
             first_channels = in_channels if i == 0 else hidden_channels
             second_channels = out_channels if i == num_layers - 1 else hidden_channels
             self.convs.append(TransformerConv(first_channels, second_channels))
-        self.dropout = dropout
-        self.out_act = out_act
-
-    def reset_parameters(self):
-        for conv in self.convs:
-            conv.reset_parameters()
-
-    def forward(self, x, adj_t):
-        for conv in self.convs[:-1]:
-            x = conv(x, adj_t)
-            x = self.activation(x)
-            x = F.dropout(x, p=self.dropout, training=self.training)
-        x = self.convs[-1](x, adj_t)
-        if self.out_act:
-            x = self.activation(x)
-        return x
 
 
 class MLPPredictor(torch.nn.Module):

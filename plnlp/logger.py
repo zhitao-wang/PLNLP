@@ -13,10 +13,14 @@ class Logger(object):
         assert run >= 0 and run < len(self.results)
         self.results[run].append(result)
 
-    def print_statistics(self, run=None, f=sys.stdout):
+    def print_statistics(self, run=None, f=sys.stdout, last_best=False):
         if run is not None:
             result = 100 * torch.tensor(self.results[run])
-            argmax = result[:, 0].argmax().item()
+            if last_best:
+                # get last max value index by reversing result tensor
+                argmax = result.size(0) - result[:, 0].flip(dims=[0]).argmax().item() - 1
+            else:
+                argmax = result[:, 0].argmax().item()
             print(f'Run {run + 1:02d}:', file=f)
             print(f'Highest Valid: {result[:, 0].max():.2f}', file=f)
             print(f'Highest Eval Point: {argmax + 1}', file=f)
@@ -25,9 +29,15 @@ class Logger(object):
             result = 100 * torch.tensor(self.results)
 
             best_results = []
+
             for r in result:
                 valid = r[:, 0].max().item()
-                test = r[r[:, 0].argmax(), 1].item()
+                if last_best:
+                    # get last max value index by reversing result tensor
+                    argmax = r.size(0) - r[:, 0].flip(dims=[0]).argmax().item() - 1
+                else:
+                    argmax = r[:, 0].argmax().item()
+                test = r[argmax, 1].item()
                 best_results.append((valid, test))
 
             best_result = torch.tensor(best_results)

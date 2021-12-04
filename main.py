@@ -33,6 +33,7 @@ def argument():
     parser.add_argument('--gnn_hidden_channels', type=int, default=256)
     parser.add_argument('--mlp_hidden_channels', type=int, default=256)
     parser.add_argument('--dropout', type=float, default=0.0)
+    parser.add_argument('--grad_clip_norm', type=float, default=2.0)
     parser.add_argument('--batch_size', type=int, default=64 * 1024)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--num_neg', type=int, default=1)
@@ -97,7 +98,7 @@ def main():
     print(args)
 
     # create log file and save args
-    log_file_name = 'log_' + str(int(time.time())) + '.txt'
+    log_file_name = 'log_' + args.data_name + '_' + str(int(time.time())) + '.txt'
     log_file = os.path.join(args.res_dir, log_file_name)
     with open(log_file, 'a') as f:
         f.write(str(args) + '\n')
@@ -206,6 +207,7 @@ def main():
         gnn_out_act=args.gnn_out_act,
         loss_func=args.loss_func,
         optimizer_name=args.optimizer,
+        grad_clip_norm=args.grad_clip_norm,
         device=device,
         use_node_feats=args.use_node_feats,
         train_node_emb=args.train_node_emb,
