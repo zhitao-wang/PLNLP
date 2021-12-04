@@ -169,12 +169,14 @@ class BaseModel(object):
             loss = self.calculate_loss(pos_out, neg_out, num_neg, margin=weight_margin)
             loss.backward()
 
-            if self.emb is not None:
-                torch.nn.utils.clip_grad_norm_([self.emb.weight], self.clip_norm)
-            if self.feat_trans_lin is not None:
-                torch.nn.utils.clip_grad_norm_(self.feat_trans_lin.parameters(), self.clip_norm)
-            torch.nn.utils.clip_grad_norm_(self.encoder.parameters(), self.clip_norm)
-            torch.nn.utils.clip_grad_norm_(self.predictor.parameters(), self.clip_norm)
+            if self.clip_norm > 0:
+                if self.emb is not None:
+                    torch.nn.utils.clip_grad_norm_([self.emb.weight], self.clip_norm)
+                if self.feat_trans_lin is not None:
+                    torch.nn.utils.clip_grad_norm_(self.feat_trans_lin.parameters(), self.clip_norm)
+                torch.nn.utils.clip_grad_norm_(self.encoder.parameters(), self.clip_norm)
+                torch.nn.utils.clip_grad_norm_(self.predictor.parameters(), self.clip_norm)
+
             self.optimizer.step()
 
             num_examples = pos_out.size(0)

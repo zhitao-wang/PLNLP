@@ -269,14 +269,14 @@ def main():
             loggers[key].print_statistics(run, last_best=args.eval_last_best)
             with open(log_file, 'a') as f:
                 print(key, file=f)
-                loggers[key].print_statistics(run, last_best=args.eval_last_best, f=f)
+                loggers[key].print_statistics(run, f=f, last_best=args.eval_last_best)
 
     for key in loggers.keys():
         print(key)
         loggers[key].print_statistics(last_best=args.eval_last_best)
         with open(log_file, 'a') as f:
             print(key, file=f)
-            loggers[key].print_statistics(last_best=args.eval_last_best, f=f)
+            loggers[key].print_statistics(f=f, last_best=args.eval_last_best)
 
 
 if __name__ == "__main__":
