@@ -171,7 +171,7 @@ def main():
 
     if args.encoder.upper() == 'GCN':
         # Pre-compute GCN normalization.
-        data.adj_t = gcn_normalization(data.adj_t, diag=True)
+        data.adj_t = gcn_normalization(data.adj_t)
 
     if args.encoder.upper() == 'WSAGE':
         data.adj_t = adj_normalization(data.adj_t)
