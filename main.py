@@ -5,7 +5,6 @@ import torch
 import os
 import torch_geometric.transforms as T
 from torch_geometric.utils import to_undirected
-from torch_geometric.nn.pool.avg_pool import avg_pool_neighbor_x
 from torch_sparse import coalesce, SparseTensor
 from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
 from plnlp.logger import Logger
@@ -17,14 +16,12 @@ def argument():
     parser = argparse.ArgumentParser()
     parser.add_argument('--encoder', type=str, default='GraphSage')
     parser.add_argument('--predictor', type=str, default='DOT')
-    parser.add_argument('--activation', type=str, default='relu')
     parser.add_argument('--optimizer', type=str, default='Adam')
     parser.add_argument('--loss_func', type=str, default='AUC')
     parser.add_argument('--neg_sampler', type=str, default='global_perm')
     parser.add_argument('--data_name', type=str, default='ogbl-ppa')
     parser.add_argument('--data_path', type=str, default='dataset')
     parser.add_argument('--eval_metric', type=str, default='hits')
-    parser.add_argument('--model', type=str, default='base')
     parser.add_argument('--res_dir', type=str, default='')
     parser.add_argument('--pretrain_emb', type=str, default='')
     parser.add_argument('--gnn_num_layers', type=int, default=2)
@@ -33,7 +30,7 @@ def argument():
     parser.add_argument('--gnn_hidden_channels', type=int, default=256)
     parser.add_argument('--mlp_hidden_channels', type=int, default=256)
     parser.add_argument('--dropout', type=float, default=0.0)
-    parser.add_argument('--grad_clip_norm', type=float, default=float('inf'))
+    parser.add_argument('--grad_clip_norm', type=float, default=-1)
     parser.add_argument('--batch_size', type=int, default=64 * 1024)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--num_neg', type=int, default=1)
@@ -43,14 +40,10 @@ def argument():
     parser.add_argument('--runs', type=int, default=10)
     parser.add_argument('--year', type=int, default=-1)
     parser.add_argument('--device', type=int, default=0)
-    parser.add_argument('--gnn_out_act', type=str2bool, default=False)
     parser.add_argument('--use_node_feats', type=str2bool, default=False)
     parser.add_argument('--use_coalesce', type=str2bool, default=False)
-    parser.add_argument('--edge_weight_repeat', type=str2bool, default=False)
     parser.add_argument('--train_node_emb', type=str2bool, default=False)
-    parser.add_argument('--node_feat_trans', type=str2bool, default=False)
-    parser.add_argument('--pre_aggregate', type=str2bool, default=False)
-    parser.add_argument('--train_subgraph', type=str2bool, default=False)
+    parser.add_argument('--train_on_subgraph', type=str2bool, default=False)
     parser.add_argument('--use_valedges_as_input', type=str2bool, default=False)
     parser.add_argument('--eval_last_best', type=str2bool, default=False)
     args = parser.parse_args()
@@ -107,17 +100,15 @@ def main():
     if hasattr(data, 'x'):
         if data.x is not None:
             data.x = data.x.to(torch.float)
-        if args.pre_aggregate:
-            data = avg_pool_neighbor_x(data)
 
     if args.data_name == 'ogbl-citation2':
         data.adj_t = data.adj_t.to_symmetric()
 
     if args.data_name == 'ogbl-collab':
+        # only train edges after specific year
         if args.year > 0 and hasattr(data, 'edge_year'):
             selected_year_index = torch.reshape(
-                (split_edge['train']['year'] >= args.year).nonzero(
-                    as_tuple=False), (-1,))
+                (split_edge['train']['year'] >= args.year).nonzero(as_tuple=False), (-1,))
             split_edge['train']['edge'] = split_edge['train']['edge'][selected_year_index]
             split_edge['train']['weight'] = split_edge['train']['weight'][selected_year_index]
             split_edge['train']['year'] = split_edge['train']['year'][selected_year_index]
@@ -130,7 +121,7 @@ def main():
                                       value=new_edge_weight.to(torch.float32))
             data.edge_index = new_edge_index
 
-        # Use training + validation edges for inference on test set.
+        # Use training + validation edges
         if args.use_valedges_as_input:
             full_edge_index = torch.cat([split_edge['valid']['edge'].t(), split_edge['train']['edge'].t()], dim=-1)
             full_edge_weight = torch.cat([split_edge['train']['weight'], split_edge['valid']['weight']], dim=-1)
@@ -145,29 +136,26 @@ def main():
             if args.use_coalesce:
                 full_edge_index, full_edge_weight = coalesce(full_edge_index, full_edge_weight, num_nodes, num_nodes)
 
-            if args.edge_weight_repeat:
-                split_edge['train']['edge'] = torch.repeat_interleave(full_edge_index.t(), full_edge_weight, dim=0)
-                split_edge['train']['weight'] = torch.ones(split_edge['train']['edge'].size(0), dtype=torch.float32)
-            else:
-                split_edge['train']['edge'] = full_edge_index.t()
-                deg = data.adj_t.sum(dim=1).to(torch.float)
-                deg_inv_sqrt = deg.pow(-0.5)
-                deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
-                split_edge['train']['weight'] = deg_inv_sqrt[full_edge_index[0]] * full_edge_weight * deg_inv_sqrt[
-                    full_edge_index[1]]
+            # edge weight normalization
+            split_edge['train']['edge'] = full_edge_index.t()
+            deg = data.adj_t.sum(dim=1).to(torch.float)
+            deg_inv_sqrt = deg.pow(-0.5)
+            deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
+            split_edge['train']['weight'] = deg_inv_sqrt[full_edge_index[0]] * full_edge_weight * deg_inv_sqrt[
+                full_edge_index[1]]
 
-        if args.train_subgraph:
+        # reindex node ids on sub-graph
+        if args.train_on_subgraph:
+            # extract involved nodes
             row, col, edge_weight = data.adj_t.coo()
             subset = set(row.tolist()).union(set(col.tolist()))
             subset, _ = torch.sort(torch.tensor(list(subset)))
-            # For unseen node we set it index as -1
+            # For unseen node we set its index as -1
             n_idx = torch.zeros(num_nodes, dtype=torch.long) - 1
             n_idx[subset] = torch.arange(subset.size(0))
-            # Reset edge_index, adj_t, num_nodes
+            # Reindex edge_index, adj_t, num_nodes
             data.edge_index = n_idx[data.edge_index]
-            data.adj_t = SparseTensor(row=n_idx[row],
-                                      col=n_idx[col],
-                                      value=edge_weight)
+            data.adj_t = SparseTensor(row=n_idx[row], col=n_idx[col], value=edge_weight)
             num_nodes = subset.size(0)
             if hasattr(data, 'x'):
                 if data.x is not None:
@@ -195,6 +183,7 @@ def main():
     model = BaseModel(
         lr=args.lr,
         dropout=args.dropout,
+        grad_clip_norm=args.grad_clip_norm,
         gnn_num_layers=args.gnn_num_layers,
         mlp_num_layers=args.mlp_num_layers,
         emb_hidden_channels=args.emb_hidden_channels,
@@ -204,17 +193,18 @@ def main():
         num_node_feats=num_node_feats,
         gnn_encoder_name=args.encoder,
         predictor_name=args.predictor,
-        activation_name=args.activation,
-        gnn_out_act=args.gnn_out_act,
         loss_func=args.loss_func,
         optimizer_name=args.optimizer,
-        grad_clip_norm=args.grad_clip_norm,
         device=device,
         use_node_feats=args.use_node_feats,
         train_node_emb=args.train_node_emb,
-        pretrain_emb=args.pretrain_emb,
-        node_feat_trans=args.node_feat_trans
+        pretrain_emb=args.pretrain_emb
     )
+
+    total_params = sum(p.numel() for param in model.para_list for p in param)
+    total_params_print = f'Total number of model parameters is {total_params}'
+    with open(log_file, 'a') as f:
+        f.write(total_params_print + '\n')
 
     evaluator = Evaluator(name=args.data_name)
 
@@ -260,7 +250,7 @@ def main():
                             print(to_print, file=f)
                     print('---')
                     print(
-                        f'Training Time Per Epoch: {spent_time / args.log_steps: .4f} s')
+                        f'Training Time Per Epoch: {spent_time / args.eval_steps: .4f} s')
                     print('---')
                     start_time = time.time()
 

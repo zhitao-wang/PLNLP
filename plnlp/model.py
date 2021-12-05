@@ -27,8 +27,6 @@ class BaseModel(object):
             gnn encoder name
         predictor_name: str
             link predictor name
-        activation_name: str
-            activation function name
         loss_func: str
             loss function name
         optimizer_name: str
@@ -37,83 +35,64 @@ class BaseModel(object):
             device name: gpu or cpu
         use_node_feats: bool
             whether to use raw node features as input
-        train_node_emb:
+        train_node_emb: bool
             whether to train node embeddings based on node id
-        pretrain_emb:
+        pretrain_emb: str
             whether to load pretrained node embeddings
-        node_feat_trans:
-            whether to do linear transformation for node features
     """
 
-    def __init__(self, lr, dropout, gnn_num_layers, mlp_num_layers, emb_hidden_channels, gnn_hidden_channels,
-                 mlp_hidden_channels, num_nodes, num_node_feats, gnn_encoder_name, predictor_name, activation_name,
-                 gnn_out_act, loss_func, optimizer_name, device, use_node_feats, train_node_emb, pretrain_emb,
-                 node_feat_trans, grad_clip_norm):
+    def __init__(self, lr, dropout, grad_clip_norm, gnn_num_layers, mlp_num_layers, emb_hidden_channels,
+                 gnn_hidden_channels, mlp_hidden_channels, num_nodes, num_node_feats, gnn_encoder_name,
+                 predictor_name, loss_func, optimizer_name, device, use_node_feats, train_node_emb, pretrain_emb=None):
         self.loss_func_name = loss_func
         self.num_nodes = num_nodes
         self.num_node_feats = num_node_feats
         self.use_node_feats = use_node_feats
         self.train_node_emb = train_node_emb
-        self.node_feat_trans = node_feat_trans
         self.clip_norm = grad_clip_norm
         self.device = device
 
         # Input Layer
-        self.input_channels, self.emb, self.feat_trans_lin = create_input_layer(num_nodes=num_nodes,
-                                                                                num_node_feats=num_node_feats,
-                                                                                hidden_channels=emb_hidden_channels,
-                                                                                use_node_feats=use_node_feats,
-                                                                                train_node_emb=train_node_emb,
-                                                                                pretrain_emb=pretrain_emb,
-                                                                                node_feat_trans=node_feat_trans)
+        self.input_channels, self.emb = create_input_layer(num_nodes=num_nodes,
+                                                           num_node_feats=num_node_feats,
+                                                           hidden_channels=emb_hidden_channels,
+                                                           use_node_feats=use_node_feats,
+                                                           train_node_emb=train_node_emb,
+                                                           pretrain_emb=pretrain_emb)
         if self.emb is not None:
             self.emb = self.emb.to(device)
-        if self.feat_trans_lin is not None:
-            self.feat_trans_lin = self.feat_trans_lin.to(device)
 
         # GNN Layer
         self.encoder = create_gnn_layer(input_channels=self.input_channels,
                                         hidden_channels=gnn_hidden_channels,
                                         num_layers=gnn_num_layers,
                                         dropout=dropout,
-                                        encoder_name=gnn_encoder_name,
-                                        activation=activation_name,
-                                        out_act=gnn_out_act)
-        self.encoder = self.encoder.to(device)
+                                        encoder_name=gnn_encoder_name).to(device)
 
         # Predict Layer
         self.predictor = create_predictor_layer(hidden_channels=mlp_hidden_channels,
                                                 num_layers=mlp_num_layers,
                                                 dropout=dropout,
-                                                activation=activation_name,
-                                                predictor_name=predictor_name)
-        self.predictor = self.predictor.to(device)
+                                                predictor_name=predictor_name).to(device)
 
         # Parameters and Optimizer
-        para_list = list(self.encoder.parameters()) + list(self.predictor.parameters())
+        self.para_list = list(self.encoder.parameters()) + list(self.predictor.parameters())
         if self.emb is not None:
-            para_list += list(self.emb.parameters())
-        if self.feat_trans_lin is not None:
-            para_list += list(self.feat_trans_lin.parameters())
+            self.para_list += list(self.emb.parameters())
         if optimizer_name == 'AdamW':
-            self.optimizer = torch.optim.AdamW(para_list, lr=lr)
+            self.optimizer = torch.optim.AdamW(self.para_list, lr=lr)
         else:
-            self.optimizer = torch.optim.Adam(para_list, lr=lr)
+            self.optimizer = torch.optim.Adam(self.para_list, lr=lr)
 
     def param_init(self):
         self.encoder.reset_parameters()
         self.predictor.reset_parameters()
         if self.emb is not None:
             torch.nn.init.xavier_uniform_(self.emb.weight)
-        if self.feat_trans_lin is not None:
-            self.feat_trans_lin.reset_parameters()
 
     def create_input_feat(self, data):
         if self.use_node_feats:
-            if self.node_feat_trans:
-                input_feat = self.feat_trans_lin(data.x.to(self.device))
-            else:
-                input_feat = data.x.to(self.device)
+            input_feat = data.x.to(self.device)
             if self.train_node_emb:
                 input_feat = torch.cat([self.emb.weight, input_feat], dim=-1)
         else:
@@ -143,8 +122,7 @@ class BaseModel(object):
                                                            neg_sampler_name=neg_sampler_name,
                                                            num_neg=num_neg)
 
-        pos_train_edge, neg_train_edge = pos_train_edge.to(
-            self.device), neg_train_edge.to(self.device)
+        pos_train_edge, neg_train_edge = pos_train_edge.to(self.device), neg_train_edge.to(self.device)
 
         if 'weight' in split_edge['train']:
             edge_weight_margin = split_edge['train']['weight'].to(self.device)
@@ -152,8 +130,7 @@ class BaseModel(object):
             edge_weight_margin = None
 
         total_loss = total_examples = 0
-        for perm in DataLoader(range(pos_train_edge.size(0)), batch_size,
-                               shuffle=True):
+        for perm in DataLoader(range(pos_train_edge.size(0)), batch_size, shuffle=True):
             self.optimizer.zero_grad()
 
             input_feat = self.create_input_feat(data)
@@ -169,11 +146,7 @@ class BaseModel(object):
             loss = self.calculate_loss(pos_out, neg_out, num_neg, margin=weight_margin)
             loss.backward()
 
-            if self.clip_norm != float('inf'):
-                if self.emb is not None:
-                    torch.nn.utils.clip_grad_norm_([self.emb.weight], self.clip_norm)
-                if self.feat_trans_lin is not None:
-                    torch.nn.utils.clip_grad_norm_(self.feat_trans_lin.parameters(), self.clip_norm)
+            if self.clip_norm >= 0:
                 torch.nn.utils.clip_grad_norm_(self.encoder.parameters(), self.clip_norm)
                 torch.nn.utils.clip_grad_norm_(self.predictor.parameters(), self.clip_norm)
 
@@ -240,59 +213,50 @@ class BaseModel(object):
 
 
 def create_input_layer(num_nodes, num_node_feats, hidden_channels, use_node_feats=True,
-                       train_node_emb=False, pretrain_emb=None, node_feat_trans=False):
+                       train_node_emb=False, pretrain_emb=None):
     emb = None
-    feat_trans_lin = None
     if use_node_feats:
-        if node_feat_trans:
-            feat_trans_lin = torch.nn.Linear(
-                num_node_feats, hidden_channels, bias=False)
-            input_dim = hidden_channels
-        else:
-            input_dim = num_node_feats
+        input_dim = num_node_feats
         if train_node_emb:
             emb = torch.nn.Embedding(num_nodes, hidden_channels)
             input_dim += hidden_channels
         elif pretrain_emb is not None and pretrain_emb != '':
             weight = torch.load(pretrain_emb)
             emb = torch.nn.Embedding.from_pretrained(weight)
-            emb.weight.requires_grad = False
             input_dim += emb.weight.size(1)
     else:
         if pretrain_emb is not None and pretrain_emb != '':
             weight = torch.load(pretrain_emb)
             emb = torch.nn.Embedding.from_pretrained(weight)
-            emb.weight.requires_grad = False
             input_dim = emb.weight.size(1)
         else:
             emb = torch.nn.Embedding(num_nodes, hidden_channels)
             input_dim = hidden_channels
-    return input_dim, emb, feat_trans_lin
+    return input_dim, emb
 
 
-def create_gnn_layer(input_channels, hidden_channels, num_layers, dropout,
-                     encoder_name='SAGE', activation='relu', out_act=False):
+def create_gnn_layer(input_channels, hidden_channels, num_layers, dropout=0, encoder_name='SAGE'):
     if encoder_name.upper() == 'GCN':
-        return GCN(input_channels, hidden_channels, hidden_channels, num_layers, dropout, activation, out_act)
+        return GCN(input_channels, hidden_channels, hidden_channels, num_layers, dropout)
     elif encoder_name.upper() == 'WSAGE':
-        return WSAGE(input_channels, hidden_channels, hidden_channels, num_layers, dropout, activation, out_act)
+        return WSAGE(input_channels, hidden_channels, hidden_channels, num_layers, dropout)
     elif encoder_name.upper() == 'TRANSFORMER':
-        return Transformer(input_channels, hidden_channels, hidden_channels, num_layers, dropout, activation, out_act)
+        return Transformer(input_channels, hidden_channels, hidden_channels, num_layers, dropout)
     else:
-        return SAGE(input_channels, hidden_channels, hidden_channels, num_layers, dropout, activation, out_act)
+        return SAGE(input_channels, hidden_channels, hidden_channels, num_layers, dropout)
 
 
-def create_predictor_layer(hidden_channels=256, num_layers=2, dropout=0, activation='relu', predictor_name='MLP'):
+def create_predictor_layer(hidden_channels, num_layers, dropout=0, predictor_name='MLP'):
     predictor_name = predictor_name.upper()
     if predictor_name == 'DOT':
         return DotPredictor()
     elif predictor_name == 'BIL':
         return BilinearPredictor(hidden_channels)
     elif predictor_name == 'MLP':
-        return MLPPredictor(hidden_channels, hidden_channels, 1, num_layers, dropout, activation)
+        return MLPPredictor(hidden_channels, hidden_channels, 1, num_layers, dropout)
     elif predictor_name == 'MLPDOT':
-        return MLPDotPredictor(hidden_channels, 1, num_layers, dropout, activation)
+        return MLPDotPredictor(hidden_channels, 1, num_layers, dropout)
     elif predictor_name == 'MLPBIL':
-        return MLPBilPredictor(hidden_channels, 1, num_layers, dropout, activation)
+        return MLPBilPredictor(hidden_channels, 1, num_layers, dropout)
     elif predictor_name == 'MLPCAT':
-        return MLPCatPredictor(hidden_channels, hidden_channels, 1, num_layers, dropout, activation)
+        return MLPCatPredictor(hidden_channels, hidden_channels, 1, num_layers, dropout)
