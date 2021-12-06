@@ -203,6 +203,7 @@ def main():
 
     total_params = sum(p.numel() for param in model.para_list for p in param)
     total_params_print = f'Total number of model parameters is {total_params}'
+    print(total_params_print)
     with open(log_file, 'a') as f:
         f.write(total_params_print + '\n')
 
