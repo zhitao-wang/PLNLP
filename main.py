@@ -14,7 +14,7 @@ from plnlp.utils import gcn_normalization, adj_normalization
 
 def argument():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--encoder', type=str, default='GraphSage')
+    parser.add_argument('--encoder', type=str, default='SAGE')
     parser.add_argument('--predictor', type=str, default='MLP')
     parser.add_argument('--optimizer', type=str, default='Adam')
     parser.add_argument('--loss_func', type=str, default='AUC')
@@ -25,7 +25,7 @@ def argument():
     parser.add_argument('--res_dir', type=str, default='')
     parser.add_argument('--pretrain_emb', type=str, default='')
     parser.add_argument('--gnn_num_layers', type=int, default=2)
-    parser.add_argument('--mlp_num_layers', type=int, default=1)
+    parser.add_argument('--mlp_num_layers', type=int, default=2)
     parser.add_argument('--emb_hidden_channels', type=int, default=256)
     parser.add_argument('--gnn_hidden_channels', type=int, default=256)
     parser.add_argument('--mlp_hidden_channels', type=int, default=256)
