@@ -31,14 +31,13 @@ ogbl-citation2:
     python main.py --data_name=ogbl-citation2 --use_node_feat=True --encoder=GCN --emb_hidden_channels=50 --mlp_hidden_channels=200 --gnn_hidden_channels=200 --grad_clip_norm=1 --eval_steps=1 --num_neg=3 --eval_metric=mrr --epochs=100 --neg_sampler=local --dropout=0 
 
 ## Reference
-This work is based on our previous work to some extent. The related works are listed as follows:
+This work is based on our previous work as listed below:
 
-Zhitao Wang, Chengyao Chen, Wenjie Li. "Predictive Network Representation Learning for Link Prediction", The 40th International ACM SIGIR Conference on Research and Development inInformation Retrieval, 2017. (SIGIR'17) [Paper]
+Zhitao Wang, Chengyao Chen, Wenjie Li. "Predictive Network Representation Learning for Link Prediction" (SIGIR'17) [Paper]: https://zhitao-wang.github.io/paper/pnrl.pdf
 
-Zhitao Wang, Yu Lei and Wenjie Li. "Neighborhood Interaction Attention Network for Link Prediction", The 28th ACM International Conference on Information and Knowledge Management, 2019. (CIKM'19) [Paper] 
+Zhitao Wang, Yu Lei and Wenjie Li. "Neighborhood Interaction Attention Network for Link Prediction" (CIKM'19) [Paper]: https://dl.acm.org/doi/10.1145/3357384.3358093
 
-Zhitao Wang, Yu Lei and Wenjie Li. "Neighborhood Attention Networks with Adversarial Learning for Link Prediction ", IEEE Transactions on Neural Networks and Learning Systems, 2020 (TNNLS) [Paper] 
+Zhitao Wang, Yu Lei and Wenjie Li. "Neighborhood Attention Networks with Adversarial Learning for Link Prediction " (TNNLS) [Paper]: https://ieeexplore.ieee.org/document/9174790
 
-Zhitao Wang, Wenjie Li and Hanjing Su. “Hierarchical Attention Link Prediction Neural Network ”, Knowledge-Based Systems, 2021 (KNONSYS)
 
 
