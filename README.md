@@ -1,6 +1,6 @@
 # Pairwise Learning for Neural Link Prediction for OGB (PLNLP-OGB)
 This repository provides evaluation codes of PLNLP for OGB link property prediction task. The idea of PLNLP is described in the following article:
->**Pairwise Learning for Neural Link Prediction (https://arxiv.org/pdf/2010.16103.pdf)**
+>**Pairwise Learning for Neural Link Prediction (https://arxiv.org/pdf/2112.02936.pdf)**
 
 The performance of PLNLP on OGB link prediction tasks is listed as the following tables:
 ||   ogbl-ddi (Hits@20)   |   ogbl-collab (Hits@50)   |  ogbl-citation2 (MRR)  |
