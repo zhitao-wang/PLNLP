@@ -32,6 +32,7 @@ ogbl-citation2:
 
 ## Reference
 This work is based on our previous work to some extent. The related works are listed as follows:
+
 Zhitao Wang, Chengyao Chen, Wenjie Li. "Predictive Network Representation Learning for Link Prediction", The 40th International ACM SIGIR Conference on Research and Development inInformation Retrieval, 2017. (SIGIR'17) [Paper]
 
 Zhitao Wang, Yu Lei and Wenjie Li. "Neighborhood Interaction Attention Network for Link Prediction", The 28th ACM International Conference on Information and Knowledge Management, 2019. (CIKM'19) [Paper] 
@@ -39,5 +40,5 @@ Zhitao Wang, Yu Lei and Wenjie Li. "Neighborhood Interaction Attention Network f
 Zhitao Wang, Yu Lei and Wenjie Li. "Neighborhood Attention Networks with Adversarial Learning for Link Prediction ", IEEE Transactions on Neural Networks and Learning Systems, 2020 (TNNLS) [Paper] 
 
 Zhitao Wang, Wenjie Li and Hanjing Su. “Hierarchical Attention Link Prediction Neural Network ”, Knowledge-Based Systems, 2021 (KNONSYS)
-![Uploading image.png…]()
+
 
