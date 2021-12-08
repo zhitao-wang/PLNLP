@@ -2,6 +2,12 @@
 This repository provides evaluation codes of PLNLP for OGB link property prediction task. The idea of PLNLP is described in the following article:
 >**Pairwise Learning for Neural Link Prediction (https://arxiv.org/pdf/2010.16103.pdf)**
 
+The performance of PLNLP on OGB link prediction tasks is listed as the following tables:
+||  ogbl-ddi   |  ogbl-collab   |  ogbl-citation2  |
+|  ----  |  ----  | ----  | ----  |
+|  Validation | 单元格  | 单元格 | 单元格 |
+|  Test | 单元格  | 单元格 | 单元格 |
+
 ## Environment
 The code is implemented with PyTorch and PyTorch Geometric. Requirments:  
 &emsp;1. python=3.6  
