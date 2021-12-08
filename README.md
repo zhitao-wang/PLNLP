@@ -23,7 +23,8 @@ ogbl-ddi:
     python main.py --data_name=ogbl-ddi --emb_hidden_channels=512 --gnn_hidden_channels=512 --mlp_hidden_channels=512 --num_neg=3 --epochs=500 --neg_sampler=global --dropout=0.3 
 
 ogbl-collab: 
-Validation set is allowed to be used for training in this dataset. Meanwhile, following the trick of HOP-REC, we only use training edges after year 2010 with validation edges, and train the model on this subgraph.
+
+Validation set is allowed to be used for training in this dataset. Meanwhile, following the trick of HOP-REC, we only use training edges after year 2010 with validation edges, and train the model on this subgraph. 
 
     python main.py --data_name=ogbl-collab --predictor=DOT --use_valedges_as_input=True --year=2010 --train_on_subgraph=True --num_neg=1 --epochs=800 --eval_last_best=True --neg_sampler=global --dropout=0.3
 
