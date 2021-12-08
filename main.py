@@ -30,7 +30,7 @@ def argument():
     parser.add_argument('--gnn_hidden_channels', type=int, default=256)
     parser.add_argument('--mlp_hidden_channels', type=int, default=256)
     parser.add_argument('--dropout', type=float, default=0.0)
-    parser.add_argument('--grad_clip_norm', type=float, default=2)
+    parser.add_argument('--grad_clip_norm', type=float, default=2.0)
     parser.add_argument('--batch_size', type=int, default=64 * 1024)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--num_neg', type=int, default=1)
