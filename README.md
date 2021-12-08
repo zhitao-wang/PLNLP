@@ -35,10 +35,10 @@ ogbl-citation2:
 ## Reference
 This work is based on our previous work as listed below:
 
-[1].  Zhitao Wang, Chengyao Chen, Wenjie Li. "Predictive Network Representation Learning for Link Prediction" (SIGIR'17) [[Paper](https://zhitao-wang.github.io/paper/pnrl.pdf)]
+[1] Zhitao Wang, Chengyao Chen, Wenjie Li. "Predictive Network Representation Learning for Link Prediction" (SIGIR'17) [[Paper](https://zhitao-wang.github.io/paper/pnrl.pdf)]
 
-[2].  Zhitao Wang, Yu Lei and Wenjie Li. "Neighborhood Interaction Attention Network for Link Prediction" (CIKM'19) [[Paper](https://dl.acm.org/doi/10.1145/3357384.3358093)]
+[2] Zhitao Wang, Yu Lei and Wenjie Li. "Neighborhood Interaction Attention Network for Link Prediction" (CIKM'19) [[Paper](https://dl.acm.org/doi/10.1145/3357384.3358093)]
 
-[3].  Zhitao Wang, Yu Lei and Wenjie Li. "Neighborhood Attention Networks with Adversarial Learning for Link Prediction " (TNNLS) [[Paper](https://ieeexplore.ieee.org/document/9174790)]
+[3] Zhitao Wang, Yu Lei and Wenjie Li. "Neighborhood Attention Networks with Adversarial Learning for Link Prediction " (TNNLS) [[Paper](https://ieeexplore.ieee.org/document/9174790)]
 
 
