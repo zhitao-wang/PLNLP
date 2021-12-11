@@ -8,7 +8,7 @@ The performance of PLNLP on OGB link prediction tasks is listed as the following
 |  Validation | 82.42 ± 2.53  | 100.00 ± 0.00 | 84.90 ± 0.31 |
 |  Test | 90.88 ± 3.13  | 68.72 ± 0.52 | 84.92 ± 0.29 |
 
-Only with basic graph neural layers (GraphSAGE or GCN), PLNLP achieves **Top-1** performance on ogbl-ddi, and **Top-2** on both ogbl-collab and ogbl-citation2 in current OGB Link Property Prediction Leader Board, which demonstrates the effectiveness of the proposed framework. We beielve that the performance will be further improved with link prediction specific neural architecure, such as proposed ones in our previous work [2][3]. We leave this part in the future work.
+Only with basic graph neural layers (GraphSAGE or GCN), PLNLP achieves **Top-1** performance on ogbl-ddi, and **Top-2** on both ogbl-collab and ogbl-citation2 in current OGB Link Property Prediction Leader Board (**Dec 11, 2021**), which demonstrates the effectiveness of the proposed framework. We beielve that the performance will be further improved with link prediction specific neural architecure, such as proposed ones in our previous work [2][3]. We leave this part in the future work.
 
 ## Environment
 The code is implemented with PyTorch and PyTorch Geometric. Requirments:  
