@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import math
 from torch.utils.data import DataLoader
 from plnlp.layer import *
 from plnlp.loss import *
@@ -43,7 +44,8 @@ class BaseModel(object):
 
     def __init__(self, lr, dropout, grad_clip_norm, gnn_num_layers, mlp_num_layers, emb_hidden_channels,
                  gnn_hidden_channels, mlp_hidden_channels, num_nodes, num_node_feats, gnn_encoder_name,
-                 predictor_name, loss_func, optimizer_name, device, use_node_feats, train_node_emb, pretrain_emb=None):
+                 predictor_name, loss_func, optimizer_name, device, use_node_feats, train_node_emb,
+                 pretrain_emb=None):
         self.loss_func_name = loss_func
         self.num_nodes = num_nodes
         self.num_node_feats = num_node_feats
@@ -79,8 +81,11 @@ class BaseModel(object):
         self.para_list = list(self.encoder.parameters()) + list(self.predictor.parameters())
         if self.emb is not None:
             self.para_list += list(self.emb.parameters())
+
         if optimizer_name == 'AdamW':
             self.optimizer = torch.optim.AdamW(self.para_list, lr=lr)
+        elif optimizer_name == 'SGD':
+            self.optimizer = torch.optim.SGD(self.para_list, lr=lr, momentum=0.9, weight_decay=1e-5, nesterov=True)
         else:
             self.optimizer = torch.optim.Adam(self.para_list, lr=lr)
 
@@ -106,8 +111,16 @@ class BaseModel(object):
             loss = info_nce_loss(pos_out, neg_out, num_neg)
         elif self.loss_func_name == 'LogRank':
             loss = log_rank_loss(pos_out, neg_out, num_neg)
+        elif self.loss_func_name == 'HingeAUC':
+            loss = hinge_auc_loss(pos_out, neg_out, num_neg)
         elif self.loss_func_name == 'AdaAUC' and margin is not None:
             loss = adaptive_auc_loss(pos_out, neg_out, num_neg, margin)
+        elif self.loss_func_name == 'WeightedAUC' and margin is not None:
+            loss = weighted_auc_loss(pos_out, neg_out, num_neg, margin)
+        elif self.loss_func_name == 'AdaHingeAUC' and margin is not None:
+            loss = adaptive_hinge_auc_loss(pos_out, neg_out, num_neg, margin)
+        elif self.loss_func_name == 'WeightedHingeAUC' and margin is not None:
+            loss = weighted_hinge_auc_loss(pos_out, neg_out, num_neg, margin)
         else:
             loss = auc_loss(pos_out, neg_out, num_neg)
         return loss
@@ -130,6 +143,7 @@ class BaseModel(object):
             edge_weight_margin = None
 
         total_loss = total_examples = 0
+
         for perm in DataLoader(range(pos_train_edge.size(0)), batch_size, shuffle=True):
             self.optimizer.zero_grad()
 
@@ -260,3 +274,13 @@ def create_predictor_layer(hidden_channels, num_layers, dropout=0, predictor_nam
         return MLPBilPredictor(hidden_channels, 1, num_layers, dropout)
     elif predictor_name == 'MLPCAT':
         return MLPCatPredictor(hidden_channels, hidden_channels, 1, num_layers, dropout)
+
+
+def adjust_lr(optimizer, decay_ratio, lr):
+    lr_ = lr * (1 - decay_ratio)
+    lr_min = lr * 0.0001
+    if lr_ < lr_min:
+        lr_ = lr_min
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr_
+    return lr_

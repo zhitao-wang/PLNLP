@@ -5,10 +5,11 @@ from torch_geometric.nn import SAGEConv, GCNConv, GraphConv, TransformerConv
 
 
 class BaseGNN(torch.nn.Module):
-    def __init__(self, dropout):
+    def __init__(self, dropout, num_layers):
         super(BaseGNN, self).__init__()
         self.convs = torch.nn.ModuleList()
         self.dropout = dropout
+        self.num_layers = num_layers
 
     def reset_parameters(self):
         for conv in self.convs:
@@ -20,12 +21,15 @@ class BaseGNN(torch.nn.Module):
             x = F.relu(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.convs[-1](x, adj_t)
+        if self.num_layers == 1:
+            x = F.relu(x)
+            x = F.dropout(x, p=self.dropout, training=self.training)
         return x
 
 
 class SAGE(BaseGNN):
     def __init__(self, in_channels, hidden_channels, out_channels, num_layers, dropout):
-        super(SAGE, self).__init__(dropout)
+        super(SAGE, self).__init__(dropout, num_layers)
         for i in range(num_layers):
             first_channels = in_channels if i == 0 else hidden_channels
             second_channels = out_channels if i == num_layers - 1 else hidden_channels
@@ -34,7 +38,7 @@ class SAGE(BaseGNN):
 
 class GCN(BaseGNN):
     def __init__(self, in_channels, hidden_channels, out_channels, num_layers, dropout):
-        super(GCN, self).__init__(dropout)
+        super(GCN, self).__init__(dropout, num_layers)
         for i in range(num_layers):
             first_channels = in_channels if i == 0 else hidden_channels
             second_channels = out_channels if i == num_layers - 1 else hidden_channels
@@ -43,7 +47,7 @@ class GCN(BaseGNN):
 
 class WSAGE(BaseGNN):
     def __init__(self, in_channels, hidden_channels, out_channels, num_layers, dropout):
-        super(WSAGE, self).__init__(dropout)
+        super(WSAGE, self).__init__(dropout, num_layers)
         for i in range(num_layers):
             first_channels = in_channels if i == 0 else hidden_channels
             second_channels = out_channels if i == num_layers - 1 else hidden_channels
@@ -52,7 +56,7 @@ class WSAGE(BaseGNN):
 
 class Transformer(BaseGNN):
     def __init__(self, in_channels, hidden_channels, out_channels, num_layers, dropout):
-        super(Transformer, self).__init__(dropout)
+        super(Transformer, self).__init__(dropout, num_layers)
         for i in range(num_layers):
             first_channels = in_channels if i == 0 else hidden_channels
             second_channels = out_channels if i == num_layers - 1 else hidden_channels

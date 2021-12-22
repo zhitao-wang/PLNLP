@@ -6,9 +6,10 @@ import os
 import torch_geometric.transforms as T
 from torch_geometric.utils import to_undirected
 from torch_sparse import coalesce, SparseTensor
+from torch_cluster import random_walk
 from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
 from plnlp.logger import Logger
-from plnlp.model import BaseModel
+from plnlp.model import BaseModel, adjust_lr
 from plnlp.utils import gcn_normalization, adj_normalization
 
 
@@ -22,6 +23,7 @@ def argument():
     parser.add_argument('--data_name', type=str, default='ogbl-ddi')
     parser.add_argument('--data_path', type=str, default='dataset')
     parser.add_argument('--eval_metric', type=str, default='hits')
+    parser.add_argument('--walk_start_type', type=str, default='edge')
     parser.add_argument('--res_dir', type=str, default='')
     parser.add_argument('--pretrain_emb', type=str, default='')
     parser.add_argument('--gnn_num_layers', type=int, default=2)
@@ -34,18 +36,21 @@ def argument():
     parser.add_argument('--batch_size', type=int, default=64 * 1024)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--num_neg', type=int, default=1)
+    parser.add_argument('--walk_length', type=int, default=5)
     parser.add_argument('--epochs', type=int, default=500)
     parser.add_argument('--log_steps', type=int, default=1)
     parser.add_argument('--eval_steps', type=int, default=5)
     parser.add_argument('--runs', type=int, default=10)
     parser.add_argument('--year', type=int, default=-1)
     parser.add_argument('--device', type=int, default=0)
+    parser.add_argument('--use_lr_decay', type=str2bool, default=False)
     parser.add_argument('--use_node_feats', type=str2bool, default=False)
     parser.add_argument('--use_coalesce', type=str2bool, default=False)
     parser.add_argument('--train_node_emb', type=str2bool, default=True)
     parser.add_argument('--train_on_subgraph', type=str2bool, default=False)
     parser.add_argument('--use_valedges_as_input', type=str2bool, default=False)
     parser.add_argument('--eval_last_best', type=str2bool, default=False)
+    parser.add_argument('--random_walk_augment', type=str2bool, default=False)
     args = parser.parse_args()
     return args
 
@@ -220,14 +225,38 @@ def main():
             'MRR': Logger(args.runs, args),
         }
 
+    if args.random_walk_augment:
+        rw_row, rw_col, _ = data.adj_t.coo()
+        if args.walk_start_type == 'edge':
+            rw_start = torch.reshape(split_edge['train']['edge'], (-1,)).to(device)
+        else:
+            rw_start = torch.arange(0, num_nodes, dtype=torch.long).to(device)
+
     for run in range(args.runs):
         model.param_init()
         start_time = time.time()
+
+        cur_lr = args.lr
         for epoch in range(1, 1 + args.epochs):
+            if args.random_walk_augment:
+                walk = random_walk(rw_row, rw_col, rw_start, walk_length=args.walk_length)
+                pairs = []
+                weights = []
+                for j in range(args.walk_length):
+                    pairs.append(walk[:, [0, j + 1]])
+                    weights.append(torch.ones((walk.size(0),), dtype=torch.float) / (j + 1))
+                pairs = torch.cat(pairs, dim=0)
+                weights = torch.cat(weights, dim=0)
+                # remove self-loop edges
+                mask = ((pairs[:, 0] - pairs[:, 1]) != 0)
+                split_edge['train']['edge'] = torch.masked_select(pairs, mask.view(-1, 1)).view(-1, 2)
+                split_edge['train']['weight'] = torch.masked_select(weights, mask)
+
             loss = model.train(data, split_edge,
                                batch_size=args.batch_size,
                                neg_sampler_name=args.neg_sampler,
                                num_neg=args.num_neg)
+
             if epoch % args.eval_steps == 0:
                 results = model.test(data, split_edge,
                                      batch_size=args.batch_size,
@@ -242,6 +271,7 @@ def main():
                         to_print = (f'Run: {run + 1:02d}, '
                                     f'Epoch: {epoch:02d}, '
                                     f'Loss: {loss:.4f}, '
+                                    f'Learning Rate: {cur_lr:.4f}, '
                                     f'Valid: {100 * valid_res:.2f}%, '
                                     f'Test: {100 * test_res:.2f}%')
                         print(key)
@@ -254,6 +284,11 @@ def main():
                         f'Training Time Per Epoch: {spent_time / args.eval_steps: .4f} s')
                     print('---')
                     start_time = time.time()
+
+            if args.use_lr_decay:
+                cur_lr = adjust_lr(model.optimizer,
+                                   epoch / args.epochs,
+                                   args.lr)
 
         for key in loggers.keys():
             print(key)
