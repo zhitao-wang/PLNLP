@@ -28,7 +28,7 @@ The code is implemented with PyTorch and PyTorch Geometric. Requirments:
 Validation set is allowed to be used for training in this dataset. Meanwhile, following the trick of HOP-REC, we only use training edges after year 2010 with validation edges, and train the model on this subgraph. 
 The performance of "**PLNLP (val as input)**"  on the leader board can be reproduced with following command:
 
-    python main.py --data_name=ogbl-collab --predictor=DOT --use_valedges_as_input=True --year=2010 --train_on_subgraph=True --epochs=800 --eval_last_best=True --dropout=0.3
+    python main.py --data_name=ogbl-collab --predictor=DOT --use_valedges_as_input=True --year=2010 --epochs=800 --eval_last_best=True --dropout=0.3
 
 Furthermore, we sample high-order pairs with random walk and employ them as a kind of data augmentation. This augmentation method improves the performance significantly. To reproduce the performance of "**PLNLP (random walk aug.)**" on the leader board, you can use the following command:
 
